@@ -24,6 +24,7 @@ using namespace std;
 //
 class CComponentId
 {
+    static int counter ;
     /// INVARIANT: content: vvvvv varsSENTINEL
     vector<VarIdT> theVars;
     /// INVARIANT: content: cccccc clsSENTINEL
@@ -35,6 +36,7 @@ class CComponentId
     long unsigned int hashKeyCls;
 
 public:
+    int id;
 
     /// INVARIANT:
     ///  cachedChildren may be nonempty only if cachedAs == NIL_ENTRY
@@ -96,6 +98,7 @@ public:
         cachedAs = 0;
         hashKeyVars = 0;
         hashKeyCls = 0;
+        id = counter ++;
     }
 
 
@@ -175,6 +178,7 @@ public:
     }
 
 };
+
 
 template <class _T, unsigned int _bitsPerBlock = (sizeof(_T)<<3)>
 class CPackedCompId

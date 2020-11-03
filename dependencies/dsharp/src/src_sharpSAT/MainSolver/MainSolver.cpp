@@ -1,5 +1,8 @@
 #include "MainSolver.h" // class's header file
 // class constructor
+
+int CComponentId::counter = 0;
+
 CMainSolver::CMainSolver() :
 	decStack(*this)
 {

@@ -150,6 +150,13 @@ int preprocess( set<int>& unateVarNums )
         }
         cout << "depCONST.size(): " << depCONST.size() << endl;
         cout << "numNonTseitin:   " << numNonTseitin << endl;
+	    for(auto it:varsY) {
+		    if(depFound[it])
+            {
+		    	tseitinVars.push_back(it); 
+                //cout << it << " is a tseitinVar " << endl;
+	        }
+        }
         if ( numTseitin > 0)
         {
             for(int i = 0; i < allClauses.size(); i++) {
@@ -663,7 +670,10 @@ void writeVerilogFile(string fname, string moduleName) {
 	}
 	for(auto it:varsY) {
 		if(depFound[it])
+        {
 			ofs << "wire " << varNumToName(it) << ";\n";
+            tseitinVars.push_back(it);
+        } 
 	}
 
 	// Extra wires required for non-tseitin clauses

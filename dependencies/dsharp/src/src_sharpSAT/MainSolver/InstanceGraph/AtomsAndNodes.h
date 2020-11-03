@@ -332,9 +332,8 @@ class CVariableVertex
 	unsigned int inClsVecOfs[2]; // the offset in the theInClsVector
 	unsigned int iVarNum; // the number the variable had in the input file
 
-    bool outputVar; //Added by Shetal - this is for c2syn so that the decisions are taken only on output variables. Not used in dsharp.
-
 public:
+    bool outputVar; //Added by Shetal - this is for c2syn so that the decisions are taken only on output variables. Not used in dsharp.
 
 	void setInClsVecOfs(bool pol, unsigned int ofs)
 	{
@@ -379,7 +378,6 @@ public:
 	{
 		DecLevelOfDeactivation = INVALID_DL;
 		theVal = X;
-        outputVar = false; //Added by Shetal.
 		scoreDLIS[0] = scoreDLIS[1] = 0;
 		scoreVSIDS[0] = scoreVSIDS[1] = 0;
 
@@ -427,6 +425,19 @@ public:
 		return DecLevelOfDeactivation;
 	}
 
+    //bool setValT () //Added by Shetal
+   // {
+        //cout << " Setting " << getVarNum() << "to  tseitin " << endl;
+    //    theVal = T;
+
+    //}
+    //bool setValI () //Added by Shetal
+    //{
+       // cout << " Setting " << getVarNum() << "to  input " << endl;
+     //   theVal = I;
+
+    //}
+
 	bool setVal(bool aVal, unsigned int atDL, AntecedentT ant = AntecedentT(
 			NOT_A_CLAUSE))
 	{
@@ -436,6 +447,7 @@ public:
 
 		myAntecedent = ant;
 		theVal = (TriValue) aVal;
+     //   cout << "Setting Val of " << getVarNum() << " to " << theVal << endl;
 		return true;
 	}
 
@@ -444,6 +456,7 @@ public:
 		myAntecedent = AntecedentT(NOT_A_CLAUSE);
 		DecLevelOfDeactivation = INVALID_DL;
 		theVal = X;
+      //  cout << "UnSetting Val of " << getVarNum() << " to  X"  << endl;
 	}
 
 	bool isImpliedBy(const ClauseIdT idCl)
@@ -460,6 +473,7 @@ public:
 	}
 	bool isActive() const
 	{
+       // cout << getVarNum() <<  " is active " << (theVal == X) << endl;
 		return theVal == X;
 	}
 

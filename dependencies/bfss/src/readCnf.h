@@ -24,6 +24,7 @@ extern vector<bool> tseitinClauses;
 extern vector<bool> prevTseitinClauses;
 extern vector<int> varsX;
 extern vector<int> varsY;
+extern vector<int> tseitinVars;
 extern vector<int> unates;
 
 extern int numVars, numClauses;

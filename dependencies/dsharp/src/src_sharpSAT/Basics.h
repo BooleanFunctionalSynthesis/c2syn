@@ -68,12 +68,14 @@ enum SOLVER_StateT
     ABORTED
 };
 
-enum TriValue
+enum TriValue //Expanding the TriValue to include inputs and Tseitin
 {
 
     F = 0,
     W = 1,
     X = 2
+  //  I = 3,
+   // T = 4
 };
 
 enum DT_NodeType

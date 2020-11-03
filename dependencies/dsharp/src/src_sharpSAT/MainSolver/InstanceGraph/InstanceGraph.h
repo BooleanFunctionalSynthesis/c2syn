@@ -372,6 +372,7 @@ protected:
 		return theVars.back().getVarIdT();
 	}
 
+
 	ClauseIdT makeClause()
 	{
 		theClauses.push_back(CClauseVertex(false));

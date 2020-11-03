@@ -11,6 +11,7 @@ using namespace std;
 extern vector<int> varsX;
 extern vector<int> varsY;
 extern vector<int> origVarsY;
+extern vector<int> tseitinVars;
 extern vector<bool> tseitinClauses;
 
 extern void readQdimacsFile(char * );
@@ -218,7 +219,6 @@ int main(int argc, char * argv[]) {
             if (! cont) //No more tseitins discovered; 
              break;
         }
-
     }
 
     //Create a mapping between the qdimacs variables and the AIG variables.
@@ -282,7 +282,8 @@ int main(int argc, char * argv[]) {
     cout << " varsY " << endl;
     print (origVarsY);
     //s.init();
-    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses);
+    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars);
+    //s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses); //tseitinVars);
     return status;
     //s.solve (NULL);
 
@@ -625,7 +626,7 @@ void CreateDFSGraph(Aig_Man_t* p, map <int, Aig_Obj_t*> & newYCi, map<int,int> &
 
     }
     Aig_ObjCreateCo(p, res);
-    printAig(p);
+    //printAig(p);
 }
 //	return false;
 
