@@ -87,7 +87,10 @@ int main(int argc, char * argv[]) {
    // string noUnaryFile = baseFileName + ".qdimacs.noUnary" ;
 	string aigFileName = baseFileName + ".v" ;
 	string varFileName = baseFileName + "_var.txt";
+	string tseitinFileName = baseFileName + "_dep.txt";
 //Preprocessing round 0 - Find unary variables and simplify and also  << varfind Tseitin variables.
+
+    cout << tseitinFileName << endl;
 
     readQdimacsFile(qdFileName); 
     set<int> unateVarNums;
@@ -282,7 +285,7 @@ int main(int argc, char * argv[]) {
     cout << " varsY " << endl;
     print (origVarsY);
     //s.init();
-    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars);
+    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars, baseFileName);
     //s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses); //tseitinVars);
     return status;
     //s.solve (NULL);

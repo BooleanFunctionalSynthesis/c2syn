@@ -21,15 +21,16 @@ class synSolver: public CMainSolver
     vector<bool> activeY;
     vector<bool> tseitinY;
 
-    vector <int> onlyXClauses; // They do not take part in the decomposition to begin with. Need to be added later on.
+    vector <vector<int> > onlyXClauses; // They do not take part in the decomposition to begin with. Need to be added later on.
     set <int> activeYVars;
+    string baseFileName;
 //    int tseitinVars;
 
 public:
     synSolver();
 //bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars, vector<int>& varsY, set<int>& actY);
     void init ( );
-    void CreateSynNNF(vector<vector<int> > &clauses, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinClauses, vector<int>&);
+    void CreateSynNNF(vector<vector<int> > &clauses, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinClauses, vector<int>&, string);
     bool recordRemainingComps() override;//made virtual for c2syn - SS
     bool findVSADSDecVar(LiteralIdT &theLit, const CComponentId & superComp) override;
 	bool getComp(const VarIdT &theVar, const CComponentId &superComp,
@@ -42,7 +43,7 @@ public:
     bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars); // vector<int> &varsY)
     void attachComponent ();
 	string writeDTree(ofstream& ofs) ;
-    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited) ;
+    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&) ;
     void writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream& ofs, string out) ;
     void printSynNNF();
 
@@ -51,6 +52,7 @@ private:
 	string getInputNegName(int var) ;
 	void instantiateOnOff(ofstream & ofs) ;
 	string getIDName(int id) ;
+    string writeOnlyX(ofstream & ofs, map<int, string> & visited, set<int>&);
 	void    writeOFF(ofstream& ofs);
     void    writeON(ofstream& ofs);
     void	writeOR(ofstream& ofs);
@@ -58,5 +60,6 @@ private:
     void	writeEqual(ofstream& ofs);
     void	writeNEG(ofstream& ofs);
     void	writeXOR(ofstream& ofs);
+    void    writeComp(ofstream& ofs);
 };
 #endif

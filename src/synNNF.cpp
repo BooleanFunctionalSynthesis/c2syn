@@ -61,10 +61,12 @@ void synSolver::init()
                 if (containsActY)
                     workingClauses.push_back(allClauses[i]);
                else
-                  cout << "Clause" << i << "contains only X vars " << endl;
+               {
+                    onlyXClauses.push_back(allClauses[i]);
+                    cout << "Clause" << i << "contains only X vars " << endl;
+               }
 
                 cout << " Size of workingClauses " << workingClauses.size() << endl;
-                onlyXClauses.push_back(!containsActY);
 
     }
     //cout << " ActiveY "  ;
@@ -73,7 +75,7 @@ void synSolver::init()
     //cout << endl;
 }
 
-void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinCls, vector<int> & tVars)
+void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinCls, vector<int> & tVars, string fileName)
 {
         cout << " In CreateSynNNF" << endl;
         allClauses = cls;
@@ -81,6 +83,7 @@ void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vecto
         varsY = Yvar; 
         tseitinVars = tVars;
         tseitinClauses = TseitinCls; //set<int> actY; 
+        baseFileName = fileName;
         cout << "X: " ;
         for (int j = 0; j < Xvar.size(); j++)
              cout << Xvar[j] << " " ;
@@ -920,13 +923,58 @@ bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVar
 }
 */
 
+//Taken from jatin and divya's code
+void synSolver::writeComp(ofstream& ofs) {
+		ofs<<".model Comp"<<endl;
+		ofs<<".inputs ";
+
+		map<string, string> inputsToDS;
+		
+		for(int i=1; i<=originalVarCount; i++) {
+            if (activeY[i] || tseitinY[i])  //Add to the component only if output variable
+            {
+				string posStr = "C_OUT_"+to_string(i);
+				string negStr = "C_OUT_NEG_"+to_string(i);
+
+				ofs<<posStr<<" ";
+				// ofs<<negStr<<" ";
+				inputsToDS[getInputName(i)] = posStr;
+				inputsToDS[getInputName(i+originalVarCount)] = negStr;
+			}
+			else {
+				string st = "C_INP_"+to_string(i); 
+				ofs<<st<<" ";
+				inputsToDS[getInputName(i)] = st;
+			}
+		}
+		ofs<<endl;
+		ofs<<".outputs FHAT"<<endl;
+		ofs<<".subckt DS ";
+		for(auto q: inputsToDS) {
+			ofs<<q.first<<"="<<q.second<<" ";
+		}
+
+		DTNode* root;
+		if (1 == decStack.top().getDTNode()->numChildren())
+			root = decStack.top().getDTNode()->onlyChild();
+		else
+			root = decStack.top().getDTNode();
+
+		ofs<<getIDName(root->getID())<<"=FHAT"<<endl;
+
+		ofs<<".end"<<endl;
+	}
+
 
 void synSolver::printSynNNF ()
 {
         map<int, string> visited;
+        set<int> negX;
 
         //DTNode *root = decStack.top().getDTNode();
-	    ofstream ofs ("try.snf", ofstream::out);
+	    ofstream ofs (baseFileName+".syn.blif", ofstream::out);
+
+        writeComp(ofs);
 
 		ofs<<".model DS"<<endl;
 		ofs<<".inputs ";
@@ -947,10 +995,21 @@ void synSolver::printSynNNF ()
 		else
 			root = decStack.top().getDTNode();
 
-		ofs<<".outputs "<<getIDName(root->getID())<<endl;
+        if (onlyXClauses.size() > 0)
+		    ofs<<".outputs  DS_OUT"<<endl;
+        else
+		    ofs<<".outputs "<<getIDName(root->getID())<<endl;
     //Tseitins need to be handled separately
 
-        writeDSharp_rec(root, ofs, visited) ;
+        writeDSharp_rec( root, ofs, visited, negX) ;
+
+        if (onlyXClauses.size() > 0)
+        {
+            vector<string> children;
+            children.push_back(writeOnlyX (ofs, visited, negX));
+            children.push_back(visited[root->getID()]);
+            writeOPtoBLIF_rec(children, false, ofs,  "DS_OUT");
+        }
 
 		ofs<<".end"<<endl;
 		//cout<<"end DS"<<endl;
@@ -1008,10 +1067,51 @@ void synSolver::writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream&
         }
 }
 
+string synSolver::writeOnlyX(ofstream & ofs, map<int, string> & visited, set<int>& negX)
+{
+    vector<string> cl_children;
+    vector<string> children;
+    string out;
+
+    for (int i = 0; i < onlyXClauses.size(); i++)
+    {
+        cl_children.resize(0);
+        for (auto &it : onlyXClauses[i]) //Can only be literals of X vars
+        {
+            int varNum = abs(it);
+            
+            string name = (it > 0) ? getInputName(varNum) : "DS_INP_NEG_"+to_string(varNum);
+            cl_children.push_back(name );
+            if ((it < 0) && (negX.count (varNum) == 0) )
+            {
+			    ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
+                negX.insert (varNum);
+            }
+
+        }
+        out = "OX" + to_string(i);
+        writeOPtoBLIF_rec(cl_children, true, ofs,  out);
+        children.push_back(out);
+    }
+    out = "OX_OUT";
+    writeOPtoBLIF_rec(children, false, ofs,  out);
+    return out;
+}
+        
 //Dsharp does some translation because of which the lit and the val values of a node may differ.
 //We need so fix this while writing the Blif file. -SS
 
-void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited) {
+void synSolver::readWriteTseitin (string tseitinFileName, ofstream &ofs)
+{
+    ifstream ifs (tseitinFileName);
+    if (! ifs.isopen())
+        cout << "Could not read the tseitin file " << endl;
+
+ 
+
+}
+
+void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>& negX) {
 		
 		int node_id = node->getID(); // getUniqueID(node);
 
@@ -1047,12 +1147,13 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 			
 			string name = " ";
 
-            if (!(activeY[varNum] || tseitinVars[varNum]))  //Add to the component only if output variable
+            if (!(activeY[varNum] || tseitinY[varNum]))  //Add to the component only if output variable
             {
 				name = getInputName(varNum);
 				if(!polarity) {
 					name = "DS_INP_NEG_"+to_string(varNum);
 					ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
+                    negX.insert(varNum);
 				}
 			}
 			else {
@@ -1077,7 +1178,7 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 //Need to take care of polarity! Haven;t done that -SS. TODO
             int cVal;
 			for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) {
-				writeDSharp_rec(*it, ofs, visited);
+				writeDSharp_rec(*it, ofs, visited, negX);
           //      cout << "Adding child " <<  (*it)->getID() << " i.e.,  " <<  visited[(*it)->getID()] << " to children of " << node_id << endl;
 				children.push_back(visited[(*it)->getID()] );
 			}
@@ -1087,9 +1188,10 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 			if(children.size()!=0)
             {
             //    cout << "Calling writeOP for " << node_id << endl;
-                for (auto &it : children)
+            //    for (auto &it : children)
            //         cout << "Child : " << it << " "  ;
-                    cout << endl;
+           //         cout << endl;
+                    
 				writeOPtoBLIF_rec(children, node->getType()==DT_OR, ofs, getIDName(node_id)); //Check what this should be -- not sure SS
 			}
             else
@@ -1117,7 +1219,7 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 	string synSolver::getIDName(int id) {
 		return "DS_"+ to_string(id);
 	}
-	string synSolver::writeDTree(ofstream& ofs) {
+	/*string synSolver::writeDTree(ofstream& ofs) {
 		ofs<<".model DS"<<endl;
 		ofs<<".inputs ";
 		DepositOfVars::iterator v_it;
@@ -1152,13 +1254,14 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 		instantiateOnOff(ofs);
 
 		// cout<<"rootID "<<root->getID()<<endl;
-		writeDSharp_rec(root, ofs, visited);
+		writeDSharp_rec( root, ofs, visited);
 
 		ofs<<".end"<<endl;
 		cout<<"end DS"<<endl;
 
 		return "";
 	}
+    */
     
 	void  synSolver::writeAND(ofstream& ofs) {
 		ofs<<".model and"<<endl;
