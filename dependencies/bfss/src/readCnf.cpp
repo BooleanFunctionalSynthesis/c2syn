@@ -32,8 +32,6 @@ map<int, vector<int> > depOR;
 map<int, vector<int> > depXOR;
 map<int, vector<int> > depCl; //Store the clause numbers which result in a dependency. Required if cycles are to be broken
 set<int> depCONST;
-set<int> depTRUE;
-set<int> depFALSE;
 vector<bool> depFound;
 
 //set<int> unaLit;

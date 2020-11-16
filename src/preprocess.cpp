@@ -13,6 +13,10 @@ extern vector<int> varsY;
 extern vector<int> origVarsY;
 extern vector<int> tseitinVars;
 extern vector<bool> tseitinClauses;
+extern map<int, vector<int> > depAND;
+extern map<int, vector<int> > depOR;
+extern map<int, vector<int> > depXOR;
+extern set<int> depCONST;
 
 extern void readQdimacsFile(char * );
 extern int preprocess(set<int> & );
@@ -285,7 +289,7 @@ int main(int argc, char * argv[]) {
     cout << " varsY " << endl;
     print (origVarsY);
     //s.init();
-    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars, baseFileName);
+    s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR);
     //s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses); //tseitinVars);
     return status;
     //s.solve (NULL);

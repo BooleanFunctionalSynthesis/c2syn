@@ -20,6 +20,10 @@ class synSolver: public CMainSolver
     vector <vector<int> > workingClauses;
     vector<bool> activeY;
     vector<bool> tseitinY;
+    map<int, vector<int> > depAND;
+    map<int, vector<int> > depOR;
+    map<int, vector<int> > depXOR;
+    set<int> depCONST;
 
     vector <vector<int> > onlyXClauses; // They do not take part in the decomposition to begin with. Need to be added later on.
     set <int> activeYVars;
@@ -30,7 +34,7 @@ public:
     synSolver();
 //bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars, vector<int>& varsY, set<int>& actY);
     void init ( );
-    void CreateSynNNF(vector<vector<int> > &clauses, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinClauses, vector<int>&, string);
+    void CreateSynNNF(vector<vector<int> > &clauses, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinClauses, vector<int>&, string, set<int> &, map<int, vector<int> > &, map<int, vector<int> > &, map<int, vector<int> > &);
     bool recordRemainingComps() override;//made virtual for c2syn - SS
     bool findVSADSDecVar(LiteralIdT &theLit, const CComponentId & superComp) override;
 	bool getComp(const VarIdT &theVar, const CComponentId &superComp,
@@ -43,8 +47,8 @@ public:
     bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars); // vector<int> &varsY)
     void attachComponent ();
 	string writeDTree(ofstream& ofs) ;
-    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&) ;
-    void writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream& ofs, string out) ;
+    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&) ;
+    void writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs, string out) ;
     void printSynNNF();
 
 private:
@@ -61,5 +65,9 @@ private:
     void	writeNEG(ofstream& ofs);
     void	writeXOR(ofstream& ofs);
     void    writeComp(ofstream& ofs);
+    string printTseitin (ofstream& ofs, int & tnum, int varNum, set <int>& assign, map<int, string> & tvisited, int polarity);
+    void processTseitins (vector < set<int> > & leaves);
+    void DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> > & leaves, bool visited[]);
+
 };
 #endif

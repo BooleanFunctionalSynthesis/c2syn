@@ -75,7 +75,7 @@ void synSolver::init()
     //cout << endl;
 }
 
-void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinCls, vector<int> & tVars, string fileName)
+void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinCls, vector<int> & tVars, string fileName, set <int> & dc, map<int, vector<int> > & da, map<int, vector<int> > & dor, map<int, vector<int> > & dx)
 {
         cout << " In CreateSynNNF" << endl;
         allClauses = cls;
@@ -84,24 +84,28 @@ void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vecto
         tseitinVars = tVars;
         tseitinClauses = TseitinCls; //set<int> actY; 
         baseFileName = fileName;
+        depCONST = dc;
+        depAND = da;
+        depOR = dor;
+        depXOR = dx;
         cout << "X: " ;
         for (int j = 0; j < Xvar.size(); j++)
              cout << Xvar[j] << " " ;
-    cout << endl;
-    cout << "Y: " ;
-    for (int j = 0; j < Yvar.size(); j++)
-             cout << Yvar[j] << " " ;
-    cout << endl;
-        init ();
-        cout << " Init done. Calling createfromPrep " << endl;
+        cout << endl;
+        cout << "Y: " ;
+        for (int j = 0; j < Yvar.size(); j++)
+                 cout << Yvar[j] << " " ;
+        cout << endl;
+            init ();
+            cout << " Init done. Calling createfromPrep " << endl;
 
-        createfromPrep( workingClauses, Xvar.size() + Yvar.size()); //Create the data structures;
-          cout << " Size of workingClauses " << workingClauses.size() << endl;
-        
-        cout << "Size of actY " << activeYVars.size() << endl;
+            createfromPrep( workingClauses, Xvar.size() + Yvar.size()); //Create the data structures;
+              cout << " Size of workingClauses " << workingClauses.size() << endl;
+            
+            cout << "Size of actY " << activeYVars.size() << endl;
 
-        solve (NULL);
-        printSynNNF();
+            solve (NULL);
+            printSynNNF();
 
 }
 
@@ -587,6 +591,7 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 
 	return true;
 }
+
 bool synSolver::findVSADSDecVar(LiteralIdT &theLit, const CComponentId & superComp)
 {
     cout << "In findVSADSDecVar in SynSolver" << endl;
@@ -965,12 +970,84 @@ void synSolver::writeComp(ofstream& ofs) {
 		ofs<<".end"<<endl;
 	}
 
+//Gives a map of Y variables in the subtree rooted at the Tseitins
+void synSolver::processTseitins (vector < set<int>> & leaves)
+{
+	vector<set<int> > graph(originalVarCount+1);
+
+	// Create Graph
+	for(auto it: depCONST) {
+		int var = abs(it);
+		graph[var].insert(0);
+	}
+	for(auto&it: depAND) {
+		int var = abs(it.first);
+		for(auto&it2:it.second)
+			graph[var].insert(abs(it2));
+	}
+	for(auto&it: depOR) {
+		int var = abs(it.first);
+		for(auto&it2:it.second)
+			graph[var].insert(abs(it2));
+	}
+	for(auto&it: depXOR) {
+		int var = abs(it.first);
+		for(auto&it2:it.second)
+			graph[var].insert(abs(it2));
+	}
+
+    bool visited[originalVarCount +1] = {false};
+	for (int i = 1; i < originalVarCount + 1; ++i) {
+        if (graph[i].size() > 0 )
+            DFS_collectLeaves(graph, i, leaves, visited);
+	}
+}
+    
+//For now collecting all leaves... can restrict it to only activeY if needed.
+void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> >& leaves, bool visited[])
+{
+    //if (node == 0)
+     //   return;
+    if (visited[node])
+        return;
+    
+    set<int> curr_leaves;
+    if (graph[node].size () <= 0) //This is a leaf?
+    {
+        cout << "Leaf Node " <<  node << endl;
+        
+        curr_leaves.insert(node);
+        leaves[node] = curr_leaves; //return itself
+        visited[node] = true;
+        return;
+    }
+	for(auto &it:graph[node])
+    {
+        if (!visited[it]) 
+            DFS_collectLeaves(graph, it, leaves, visited);
+
+        for (auto &l: leaves[it])
+        {
+            if (activeY[it])
+                curr_leaves.insert(l);
+            cout << "Added " << l << " to leaves " << " of " << node << endl;
+        }
+    } 
+    leaves[node] = curr_leaves;
+
+    visited [node] = true;
+    return;
+}
+
+
 
 void synSolver::printSynNNF ()
 {
         map<int, string> visited;
         set<int> negX;
 
+        vector <set <int> > leaves(originalVarCount + 1);
+       // processTseitins (leaves);
         //DTNode *root = decStack.top().getDTNode();
 	    ofstream ofs (baseFileName+".syn.blif", ofstream::out);
 
@@ -983,7 +1060,7 @@ void synSolver::printSynNNF ()
 		for (int i = 1; i <= originalVarCount; i++)
 		{
 			ofs<<getInputName(i)<<" ";
-			if (activeY[i] || tseitinY[i]) {
+			if (activeY[i] ) {
 				ofs<<getInputName(i+originalVarCount)<<" ";
 			}
 		}
@@ -1001,18 +1078,47 @@ void synSolver::printSynNNF ()
 		    ofs<<".outputs "<<getIDName(root->getID())<<endl;
     //Tseitins need to be handled separately
 
-        writeDSharp_rec( root, ofs, visited, negX) ;
+        set <int> assign;
+        int tnum = 0;
+        writeDSharp_rec( root, ofs, visited, negX, assign,tnum, leaves) ;
 
         if (onlyXClauses.size() > 0)
         {
             vector<string> children;
             children.push_back(writeOnlyX (ofs, visited, negX));
             children.push_back(visited[root->getID()]);
-            writeOPtoBLIF_rec(children, false, ofs,  "DS_OUT");
+            writeOPtoBLIF_rec(children, 1, ofs,  "DS_OUT"); //OR
         }
 
 		ofs<<".end"<<endl;
+
+/*    for (int i = 1; i <= originalVarCount ; i++)
+    {
+
+        ofs <<  ".model G_" << node << endl;
+        ofs<<".inputs ";
+        for (auto &it: curr_leaves)
+        {
+            int var = abs(it);
+            bool pos = (it > 0);
+            if ( isActiveY[var])
+            {
+                if (pos)
+				    ofs << " " << getInputName(i+originalVarCount);
+                else
+                    ofs << " " << getInputName(i);
+            }
+            else
+                    ofs << " " << getInputName(i);
+
+        }
+        ofs << endl;
+        
+        ofs << " .outputs  G_OUT_" << i << endl;
+
+     }
 		//cout<<"end DS"<<endl;
+        */
 		writeOFF(ofs);
 		writeON(ofs);
 		writeOR(ofs);
@@ -1021,10 +1127,12 @@ void synSolver::printSynNNF ()
 		writeNEG(ofs);
 		writeXOR(ofs);
         ofs.close();
+
+
 }
 
 
-void synSolver::writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream& ofs,  string out)
+void synSolver::writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs,  string out)
 {
 		assert(children.size() > 0);
 
@@ -1032,8 +1140,14 @@ void synSolver::writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream&
 
 		if(children.size() == 1)
         {
-			ofs << "subckt equate equate1 = " + children[0] << " equateOut = " + out << endl;
+			ofs << "subckt equate equate1 = " + children[0] << " equateOut = " + out << " "  << endl;
             return;
+        }
+        if (op > 2)
+        {
+            cout << "Error: Unknown Operator"  << endl;
+            return;
+
         }
 
         bool genTemp = false;
@@ -1051,11 +1165,12 @@ void synSolver::writeOPtoBLIF_rec(vector<string> &children, bool isOR, ofstream&
 
         for (int i = 1; i < children.size(); i++)
         {
-            if(isOR) {
-                ofs<<".subckt or or1 = "<<curr<<" or2 =  "<< children[i]<< " orOut = "<<nv<<endl;
-            }
-            else
+            if(op == 0) 
                 ofs<<".subckt and and1 = "<<curr<<" and2 =  "<<children[i]<< " andOut = "<<nv<<endl;
+            else if (op == 1)
+                ofs<<".subckt or or1 = "<<curr<<" or2 =  "<< children[i]<< " orOut = "<<nv<<endl;
+            else  
+                ofs<<".subckt xor xor1 = "<<curr<<" xor2 =  "<< children[i]<< " xorOut = "<<nv<<endl;
 
             curr = nv;
             if(i < children.size() - 2)
@@ -1090,37 +1205,301 @@ string synSolver::writeOnlyX(ofstream & ofs, map<int, string> & visited, set<int
 
         }
         out = "OX" + to_string(i);
-        writeOPtoBLIF_rec(cl_children, true, ofs,  out);
+        writeOPtoBLIF_rec(cl_children, 1, ofs,  out);
         children.push_back(out);
     }
     out = "OX_OUT";
-    writeOPtoBLIF_rec(children, false, ofs,  out);
+    writeOPtoBLIF_rec(children, 0, ofs,  out);
     return out;
 }
         
 //Dsharp does some translation because of which the lit and the val values of a node may differ.
 //We need so fix this while writing the Blif file. -SS
 
-void synSolver::readWriteTseitin (string tseitinFileName, ofstream &ofs)
-{
-    ifstream ifs (tseitinFileName);
-    if (! ifs.isopen())
-        cout << "Could not read the tseitin file " << endl;
+//void synSolver::readWriteTseitin (string tseitinFileName, ofstream &ofs)
+//{
+ //   ifstream ifs (tseitinFileName);
+  //  if (! ifs.isopen())
+   //     cout << "Could not read the tseitin file " << endl;
 
  
 
+//}
+
+string synSolver::printTseitin (ofstream& ofs, int& tnum,  int varNum, set <int>& assign, map<int, string> & tvisited, int polarity)
+{
+
+    if (tvisited.find (varNum) != tvisited.end())
+        return tvisited[varNum];
+
+     varNum = abs (varNum);
+    //varNum is a Tseitin Var
+    vector<int> dependents;
+    vector<string> children;
+    //The Tseitin var is not a constant.. already taken care of earlier.
+    string out = getInputName (varNum) + "_" + to_string(tnum) ;
+
+        cout << "Assign " << endl;
+        for (auto &it: assign)
+            cout << " " << it ;
+        cout << endl;
+            
+        if (depAND.count (varNum) > 0) //it is an and node
+        {
+            dependents = depAND[varNum];
+            
+
+            for (auto &it:dependents)
+            {
+                int child = abs(it);
+                bool pol = it > 0;
+                 string val = pol? "off" : "on";
+                
+                if (activeY[child])    //dependent is a Y var
+                {
+                     cout << "Dependent on  " << it << endl;
+                     if (assign.find(child) != assign.end())
+                        cout << "Child " << it << " has an assignment!" << endl;
+                     if (assign.find(-child) != assign.end())
+                        cout << "-Child " << it << " has an assignment!" << endl;
+
+                      if (assign.find(child) != assign.end() && pol)
+                      {
+                                cout << it << " has been set to true " << endl;
+                                val = "on";
+                      }
+                      if (! pol && (assign.find(-child) != assign.end()))  //If the child is negative and so is the assignment
+                      {
+                           cout <<  pol << ": polarity " << endl;
+                            val = "on";
+                      }
+                      
+                    if (!(assign.find(child) != assign.end() || assign.find(-child) != assign.end()) ) //No assignment to this war
+                    {
+                        cout << "Child " << child <<  "not assigned yet" << endl;
+                        val = "on"; //if the variable has not been seen yet, can give any value; Should i just set it to "off" to reduce the representation??
+                    }
+                    //get value of it from assign
+                    
+                   children.push_back(val);
+                   // if (val == "off")
+                    //        return "off"; // Anything conjuncted with 0 is 0.
+                    //else
+                     //   continue;
+                }
+                else
+                {
+                    if (tseitinY[it])
+                    {
+                        //What do we do if the pol is negative?
+
+                        tnum ++;
+                        val = printTseitin (ofs, tnum, child, assign, tvisited, pol );
+                        if (val == "off"  )
+                        {
+                            if (pol)
+                                return "off"; // Anything conjuncted with 0 is 0.
+                        }
+                        else
+                        {
+                            if (val == "on")
+                            {
+                                if (!pol)
+                                    return "off"; // Anything conjuncted with 0 is 0.
+                            }
+                            else
+                                children.push_back(val);
+                        }
+                 }
+                 else
+                 {   //for X
+                    if (pol) 
+                        val = getInputName(child) ;
+                    else
+                        val = getInputNegName(child) ;
+
+                   children.push_back(val);
+                }
+            }
+            
+            
+        }
+        writeOPtoBLIF_rec(children, 0, ofs, out);
+            
+     }
+     else if (depOR.count (varNum) > 0) //it is an and node
+     { 
+            dependents = depOR[varNum];
+            
+
+            for (auto &it:dependents)
+            {
+                int child = abs(it);
+                bool pol = it > 0;
+                string val = "off";
+                
+                if (activeY[child])    //dependent is a Y var
+                {
+                     cout << "Dependent on  " << it << endl;
+                     if (assign.find(child) != assign.end())
+                        cout << "Child " << it << " has an assignment!" << endl;
+                     if (assign.find(-child) != assign.end())
+                        cout << "-Child " << it << " has an assignment!" << endl;
+
+                      if (assign.find(child) != assign.end() && pol)
+                      {
+                                val = "on";
+                      }
+                      if (! pol && (assign.find(-child) != assign.end()))  //If the child is negative and so is the assignment
+                      {
+                            val = "on";
+                      }
+                      
+                    if (!(assign.find(child) != assign.end() || assign.find(-child) != assign.end()) ) //No assignment to this war
+                    {
+                        cout << "Child " << child <<  "not assigned yet" << endl;
+                        val = "off"; //if the variable has not been seen yet, can give any value; Should i just set it to "off" to reduce the representation??
+                    }
+                    //get value of it from assign
+                    
+                   if (val == "on") // if a child is true; just return true;
+                    return val;
+
+                   children.push_back(val);
+                   // if (val == "off")
+                    //        return "off"; // Anything conjuncted with 0 is 0.
+                    //else
+                     //   continue;
+                }
+                else
+                {
+                    if (tseitinY[it])
+                    {
+                        //What do we do if the pol is negative?
+
+                        tnum ++;
+                        val = printTseitin (ofs, tnum, child, assign, tvisited, pol );
+                        if (val == "on" && pol)
+                                return "on"; // Anything disjuncted with 1 is 1
+                        else
+                        {
+                            if (val == "off" && ( !pol ))
+                                    return "on"; // Anything conjuncted with 0 is 0.
+                            else
+                                children.push_back(val);
+                        }
+                    }
+                    else
+                    {   //for X
+                        if (pol) 
+                            val = getInputName(child) ;
+                        else
+                            val = getInputNegName(child) ;
+
+                    children.push_back(val);
+                    }
+                }
+            
+            
+        }
+        writeOPtoBLIF_rec(children, 1, ofs, out);
+      }
+     else if (depXOR.count (varNum) > 0) //it is an and node
+     { 
+            dependents = depOR[varNum];
+
+            for (auto &it:dependents)
+            {
+                int child = abs(it);
+                bool pol = it > 0;
+                string val = "off";
+                
+                if (activeY[child])    //dependent is a Y var
+                {
+                     cout << "Dependent on  " << it << endl;
+
+                      if (assign.find(child) != assign.end() && pol)
+                      {
+                                val = "on";
+                      }
+                      if (! pol && (assign.find(-child) != assign.end()))  //If the child is negative and so is the assignment
+                      {
+                            val = "on";
+                      }
+                      
+                    if (!(assign.find(child) != assign.end() || assign.find(-child) != assign.end()) ) //No assignment to this war
+                    {
+                        cout << "Child " << child <<  "not assigned yet" << endl;
+                        val = "on"; //if the variable has not been seen yet, can give any value; Should i just set it to "off" to reduce the representation??
+                    }
+                    //get value of it from assign
+                    
+                   children.push_back(val);
+                }
+                else
+                {
+                    if (tseitinY[it])
+                    {
+                        //What do we do if the pol is negative?
+
+                        tnum ++;
+                        val = printTseitin (ofs, tnum, child, assign, tvisited, pol );
+                        children.push_back(val);
+                    }
+                    else
+                    {   //for X
+                        if (pol) 
+                            val = getInputName(child) ;
+                        else
+                            val = getInputNegName(child) ;
+
+                    children.push_back(val);
+                    }
+                }
+            
+        }
+        writeOPtoBLIF_rec(children, 2, ofs, out);//xor op
+      }
+
+           // if (!pol)
+            //    return getInputNegName(varNum);
+        tvisited[varNum] = out;
+        string negName = getInputNegName (varNum) + "_" + to_string(tnum) ;
+        tvisited[-varNum] = negName;
+                //print to the file - neg t = not t.
+        if (polarity)
+            return out;
+        else
+        {
+			ofs<<".subckt not neg1= "<< out <<" negOut= "<< negName << endl;
+            return negName;
+        }
+            
+     return "off";
 }
 
-void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>& negX) {
+void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>& negX, set<int>& assign, int &tnum, vector<set <int> > & leaves) {
 		
 		int node_id = node->getID(); // getUniqueID(node);
 
-        //cout << " At node " << node_id << endl;
+        cout << " At node " << node_id << endl;
 
 		if(visited.find(node_id)!=visited.end())
         {
-            //cout <<  "Already visited node : " << node_id << "Returning " << endl;
-			return ;
+		    if (node->getType() != DT_LIT)
+            {
+                    cout <<  "Already visited node : " << node_id << "Returning " << endl;
+                    return ;
+            }
+            else
+            {
+                int varNum = abs(node->getVal());
+                if (!tseitinY[varNum])
+                {
+                    cout <<  "Already visited node : " << node_id << "Returning " << endl;
+                    return ;
+                }
+            }
         }
 
 
@@ -1155,35 +1534,102 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 					ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
                     negX.insert(varNum);
 				}
+                visited[node_id] = name;
+                return;
 			}
-			else {
-			//	if (tseitinVars[varNum]) {
-		//			name = retrieveTseitinName(node);
-			//	}
-			//else {
-				if(polarity)
-						name = getInputName(varNum);
-					else
-						name = getInputName(varNum+originalVarCount);
-				}
-			//}
+			else 
+            {
+                 if (activeY[varNum])
+                 {
+                       if(polarity)
+                            name = getInputName(varNum);
+                       else
+                            name = getInputName(varNum+originalVarCount);
 
-            //cout << "Name for " << node_id << " is " << name << endl;
-			visited[node_id] = name;
-            return;
+                        visited[node_id] = name;
+                        assign.insert (node->getVal()); 
+                        return;
+
+
+                 }
+                 if (tseitinY[varNum])
+                 {
+		            if(visited.find(node_id)!=visited.end())
+                           return;
+                    if (depCONST.count (varNum) != 0 || depCONST.count(-varNum) != 0) //Tseitin is a constant
+                    {
+
+                        if (depCONST.count(varNum) != 0)
+                        {
+					        ofs<<".subckt equate equate1 on equateOut = " << getInputName(varNum)  <<endl;
+				            name = getInputName(varNum);
+                        }
+                        else
+                        {
+					            ofs<<".subckt equate equate1 off equateOut = " << getInputName(varNum)  <<endl;
+				                name = getInputNegName(varNum);
+                //instead of varnum print DT_BOT
+                        }
+                        visited[node_id] = name;
+                     }
+                     else
+                     {
+                            map < int, string> tvisited; //A visited map for tseitins at the subtree rooted at this main tseitin node
+                            cout << "calling printTseitin for " << varNum << endl;
+                            tnum++;
+                            if (visited.find(node_id) != visited.end () && leaves[varNum].size() <= 0 )    //Already visited and does not have activeY leaves
+                                return;
+
+                            visited[node_id] = printTseitin (ofs, tnum, varNum, assign, tvisited, polarity); 
+                     }
+                  
+                  }
+            }
+
+            cout << "Name for " << node_id << " is " << name << endl;
 	    }
 		else
         {
 			vector<string> children;
 //Need to take care of polarity! Haven;t done that -SS. TODO
             int cVal;
-			for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) {
-				writeDSharp_rec(*it, ofs, visited, negX);
-          //      cout << "Adding child " <<  (*it)->getID() << " i.e.,  " <<  visited[(*it)->getID()] << " to children of " << node_id << endl;
-				children.push_back(visited[(*it)->getID()] );
-			}
-			
 
+            //sort children based on whether they are Y, X or Tseitin or any other node
+            // Y nodes first
+            //rest later -- have kept Tseitin to the last 
+
+            vector<DTNode *> sortedChildren(node->numChildren());
+            int first = 0; 
+          //  int last = node->numChildren() -1;
+			for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) 
+            {
+                if ((*it)->getType() == DT_LIT && (activeY[abs((*it)->getVal())])) //Y var
+                {
+                     sortedChildren[first++] = *it;
+                }
+             }
+			 
+             for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) 
+             {
+                if (!((*it)->getType() == DT_LIT && (activeY[abs((*it)->getVal())]))) //!Y var
+                {
+                     sortedChildren[first++] = *it;
+                }
+
+             }
+             for (auto &it :sortedChildren)
+             {
+			//for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) {
+                if (it->getType () !=  DT_LIT)
+                {
+                    set <int> newassign = assign;
+                    writeDSharp_rec(it, ofs, visited, negX, newassign, tnum, leaves);
+                }
+                else
+                    writeDSharp_rec(it, ofs, visited, negX, assign, tnum, leaves);
+          //      cout << "Adding child " <<  (*it)->getID() << " i.e.,  " <<  visited[(*it)->getID()] << " to children of " << node_id << endl;
+				children.push_back(visited[it->getID()] );
+			}
 			
 			if(children.size()!=0)
             {
@@ -1191,8 +1637,9 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
             //    for (auto &it : children)
            //         cout << "Child : " << it << " "  ;
            //         cout << endl;
+                int nt = (node->getType()==DT_AND)? 0 : 1;
                     
-				writeOPtoBLIF_rec(children, node->getType()==DT_OR, ofs, getIDName(node_id)); //Check what this should be -- not sure SS
+				writeOPtoBLIF_rec(children, nt, ofs, getIDName(node_id)); //Check what this should be -- not sure SS
 			}
             else
                 cout << "Internal node with 0 children " << node_id << ". Check might be an error " << endl;
