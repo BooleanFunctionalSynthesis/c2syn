@@ -15,7 +15,7 @@ vector<bool> prevTseitinClauses;
 vector<int> varsX;
 vector<int> origVarsY;
 vector<int> varsY;
-vector<int> unates;
+//vector<int> unates;
 int numVars, numClauses;
 int numA, numE;
 vector<int> tseitinVars;
@@ -562,7 +562,7 @@ void findLitToProp(set<int> unateVarNums) {
 	}
     for (auto var: unateVarNums)
     {
-         //   cout << "Setting " << var << " as const " << endl;
+            cout << "Setting unate " << var << " as const " << endl;
             setConst(var);
     }
     //set<int>::iterator it;
@@ -781,6 +781,7 @@ void writeDependenceFile(string fname) {
 		int var = abs(it);
 		bool pos = it>0;
 		ofs << varNumToName(var) << " = " << (pos?1:0) << ";\n";
+		cout << varNumToName(var) << " = " << (pos?1:0) << ";\n";
 	}
 	// and
 	for(auto&it: depAND) {

@@ -42,12 +42,12 @@ public:
 
 	bool decide() override;
  //   void getCompInputsAndTseitin(const CComponentId &superComp, viewStateT lookUpCls[], viewStateT lookUpVars[]);
-    bool OnlyX (const CComponentId & superComp);
+    bool OnlyXandTseitin (const CComponentId & superComp);
 //    unsigned int makeVariable(unsigned int VarNum);
     bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars); // vector<int> &varsY)
     void attachComponent ();
 	string writeDTree(ofstream& ofs) ;
-    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&) ;
+    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&, map<string, string> &, vector<string>& printT) ;
     void writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs, string out) ;
     void printSynNNF();
 
@@ -68,6 +68,8 @@ private:
     string printTseitin (ofstream& ofs, int & tnum, int varNum, set <int>& assign, map<int, string> & tvisited, int polarity, set <int> & negX);
     void processTseitins (vector < set<int> > & leaves);
     void DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> > & leaves, bool visited[]);
+    void printTseitinModules (ofstream& ofs, vector <set <int> > & leaves);
+    void printTseitinModulesForOperators (ofstream & ofs,  vector<set <int> > & leaves, int op, int Tvar, vector <int>& dependents);
 
 };
 #endif

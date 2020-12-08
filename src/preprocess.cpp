@@ -155,7 +155,7 @@ int main(int argc, char * argv[]) {
 
 	    cout<<"numX: " << numX << " numY: " << numY << endl;
 
-        unate.resize(numY, -1);
+        unate.resize(numY, -1); //Check if unates need to be resized each time or once is enough
         //for (int index = 0; index < numY; index++)
          //   unate[index] = -1;
 
@@ -289,6 +289,14 @@ int main(int argc, char * argv[]) {
     cout << " varsY " << endl;
     print (origVarsY);
     //s.init();
+/*    for (auto &it: unateVarNums)
+    {
+        vector<int> unaryClause; //Unates and Unit clauses add to allClauses
+        unaryClause.push_back (it);
+        allClauses.push_back(unaryClause);
+    }
+    */
+//Add Unates/Unit Clauses; May lead to some duplication.
     s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR);
     //s.CreateSynNNF(allClauses, varsX, origVarsY, tseitinClauses); //tseitinVars);
     return status;
