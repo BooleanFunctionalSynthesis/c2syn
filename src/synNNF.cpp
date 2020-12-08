@@ -237,10 +237,10 @@ void synSolver::attachComponent()
     
 	LiteralIdT theLit(NOT_A_LIT);
     vector <LiteralIdT> allLits;
-       decStack.top().getDTNode()->print(5);
+       //decStack.top().getDTNode()->print(5);
         
         CComponentId & refSupComp = decStack.TOSRefComp();
-        cout << "In attach Component. RefsupComp " << refSupComp.id << endl;
+        //cout << "In attach Component. RefsupComp " << refSupComp.id << endl;
         if (refSupComp.countCls() > 1)
         {
             DTNode * newNode = new DTNode(DT_AND, num_Nodes++);
@@ -260,13 +260,13 @@ void synSolver::attachComponent()
 
             for (itCl = refSupComp.clsBegin(); *itCl != clsSENTINEL; itCl++)
             {
-                cout << "printing Active Clause " << *itCl << endl;
+                //cout << "printing Active Clause " << *itCl << endl;
                 //printClause (*itCl);
                 //cout << endl;
-                printActiveClause (*itCl);
-                cout << endl;
-                if (isSatisfied(*itCl))
-                    cout << "Clause above is satisfied " << endl;
+                //printActiveClause (*itCl);
+                //cout << endl;
+                //if (isSatisfied(*itCl))
+                 //   cout << "Clause above is satisfied " << endl;
 				if (!isSatisfied(*itCl))
                 {
                     allSatCl = false;
@@ -305,14 +305,14 @@ void synSolver::attachComponent()
                                    cl->addParent(newNode, true);
                                    prevNode->addParent(cl, true);
                                    //cout << "Printing new clauses " <<endl;
-                                   cl->print();
-                                   cout << endl;
+                               //    cl->print();
+                                //   cout << endl;
                             } 
                             else
                             {
                                    prevNode->addParent(newNode, true);
-                                   prevNode->print();
-                                   cout << endl;
+                              //     prevNode->print();
+                                 //  cout << endl;
                                    //cout << "Printing prev node" << endl;
 	                               bcpImplQueue.push_back(AntAndLit(NOT_A_CLAUSE, *prev));
                             }
@@ -323,7 +323,7 @@ void synSolver::attachComponent()
                     //if (numVar > 0 )
                      //   cl->addParent(newNode, true);
                  }
-                 cout << "Considering Binary Clauses now " << endl;
+                 //cout << "Considering Binary Clauses now " << endl;
 	             for (vt = componentSearchStack.begin(); vt != componentSearchStack.end(); vt++)
                  {
                         pActVar = &getVar(*vt);
@@ -371,14 +371,14 @@ void synSolver::attachComponent()
          if (!allSatCl)
          {
             newNode->addParent(decStack.top().getCurrentDTNode(), true);
-            cout << "Printing comp tree  " <<endl;
-           newNode->print();
-           cout << endl;
+           // cout << "Printing comp tree  " <<endl;
+           //newNode->print();
+           //cout << endl;
            // decStack.push(newNode);
          }
-         cout << "Printing decStack top node " << endl;
-          decStack.top().getDTNode()->print(5);
-           cout << endl;
+         //cout << "Printing decStack top node " << endl;
+          //decStack.top().getDTNode()->print(5);
+           //cout << endl;
         }
         else
             cout << "Empty Component " << endl;
@@ -951,7 +951,7 @@ bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVar
             for (jt = it; jt != clauses[i].end(); jt++)
                 seenV[abs(*jt)] = X;
 
-            printClause (idCl);
+            //printClause (idCl);
 
 //            for (int vp = 0; vp < varPosMap.size(); vp++)
  //               cout << "VarPosMap Element "   << vp << " is " << varPosMap [vp] << endl;
@@ -1212,7 +1212,7 @@ void synSolver::printSynNNF ()
         }
         int tnum = 0;
         map <string, string> tseitinVisited;
-        vector<string> printT;
+        set<string> printT;
         writeDSharp_rec( root, ofs, visited, negXT, assign,tnum, leaves, tseitinVisited, printT) ;
         string currRoot = visited[root->getID()];
        /* if (depCONST.size () > 0)
@@ -1371,7 +1371,13 @@ void synSolver::printTseitinModules (ofstream & ofs,  vector<set <int> > & leave
 void synSolver::writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs,  string out)
 {
 		assert(children.size() > 0);
+        //vector <string> bkup = children;
 
+        std::sort(children.begin(), children.end()); 
+        auto last = std::unique(children.begin(), children.end());
+        children.erase(last, children.end());
+
+        //cout << " removed " << bkup.size() - children.size() << " elements from children " << endl;
         //cout << "In writeOPtoBLIF_rec Children 0 : " << children[0] << endl;
 
 		if(children.size() == 1)
@@ -1463,7 +1469,7 @@ string synSolver::writeOnlyX(ofstream & ofs, map<int, string> & visited, set<int
 //}
 
 
-void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>& negXT, set<int>& assign, int &tnum, vector<set <int> > & leaves, map <string, string>& tseitin_visited, vector<string>& printT) {
+void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>& negXT, set<int>& assign, int &tnum, vector<set <int> > & leaves, map <string, string>& tseitin_visited, set<string>& printT) {
 		
 		int node_id = node->getID(); // getUniqueID(node);
 
@@ -1689,12 +1695,15 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                 if (it->getType () !=  DT_LIT)
                 {
                     set <int> newassign = assign;
-                    if (it->getType() == DT_AND)
+                    if (node->getType() == DT_AND)
                     {
                         writeDSharp_rec(it, ofs, visited, negXT, newassign, tnum, leaves, tseitin_visited, printT);
                         for (auto &t_it : printT)
+                        {
                             children.push_back(t_it);
-                        printT.resize(0);
+                        }
+                        printT.clear();
+                        assert (printT.size() == 0);
                         children.push_back(visited[it->getID()] );
 
                     }
@@ -1747,7 +1756,7 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                             children.push_back(visited[it->getID()] + "_skwhole");
                          else
                          {
-                            printT.push_back(visited[it->getID()] + "_skwhole");
+                            printT.insert(visited[it->getID()] + "_skwhole");
                             if (!polarity)
                             {
                                     string pol_name = "NEG_" + tseitin_visited[constr_name];

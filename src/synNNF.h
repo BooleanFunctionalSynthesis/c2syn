@@ -47,7 +47,7 @@ public:
     bool createfromPrep( vector<vector<int> > &clauses, unsigned int nVars); // vector<int> &varsY)
     void attachComponent ();
 	string writeDTree(ofstream& ofs) ;
-    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&, map<string, string> &, vector<string>& printT) ;
+    void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&, map<string, string> &, set<string>& printT) ;
     void writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs, string out) ;
     void printSynNNF();
 
