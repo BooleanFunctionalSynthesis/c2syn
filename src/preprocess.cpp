@@ -77,7 +77,7 @@ synSolver s;
 int main(int argc, char * argv[]) {
 	char * qdFileName;
     if ( argc < 2 ) {
-        cout << "Wrong number of command-line arguments. Usage: pre_process qdimacs_filename " << endl;
+        cout << "Wrong number of command-line arguments. Usage: c2syn qdimacs_filename " << endl;
         
         return 1;
     }
