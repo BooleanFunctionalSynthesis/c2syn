@@ -65,7 +65,6 @@ private:
     void	writeNEG(ofstream& ofs);
     void	writeXOR(ofstream& ofs);
     void    writeComp(ofstream& ofs);
-    string printTseitin (ofstream& ofs, int & tnum, int varNum, set <int>& assign, map<int, string> & tvisited, int polarity, set <int> & negX);
     void processTseitins (vector < set<int> > & leaves);
     void DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> > & leaves, bool visited[]);
     void printTseitinModules (ofstream& ofs, vector <set <int> > & leaves);
