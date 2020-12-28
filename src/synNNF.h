@@ -37,9 +37,7 @@ public:
     void CreateSynNNF(vector<vector<int> > &clauses, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinClauses, vector<int>&, string, set<int> &, map<int, vector<int> > &, map<int, vector<int> > &, map<int, vector<int> > &);
     bool recordRemainingComps() override;//made virtual for c2syn - SS
     bool findVSADSDecVar(LiteralIdT &theLit, const CComponentId & superComp) override;
-	bool getComp(const VarIdT &theVar, const CComponentId &superComp,
-			viewStateT lookUpCls[], viewStateT lookUpVars[]) override; //made virtual for c2syn - SS
-
+	bool getComp(const VarIdT &theVar, const CComponentId &superComp, viewStateT lookUpCls[], viewStateT lookUpVars[]) override; //made virtual for c2syn - SS 
 	bool decide() override;
  //   void getCompInputsAndTseitin(const CComponentId &superComp, viewStateT lookUpCls[], viewStateT lookUpVars[]);
     bool OnlyXandTseitin (const CComponentId & superComp);
@@ -50,6 +48,7 @@ public:
     void writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & visited, set<int>&, set<int> &, int &, vector<set <int> >&, map<string, string> &, set<string>& printT) ;
     void writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs, string out) ;
     void printSynNNF();
+    bool checkStructProp();
 
 private:
 	string getInputName(int var) ;
@@ -69,6 +68,7 @@ private:
     void DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> > & leaves, bool visited[]);
     void printTseitinModules (ofstream& ofs, vector <set <int> > & leaves);
     void printTseitinModulesForOperators (ofstream & ofs,  vector<set <int> > & leaves, int op, int Tvar, vector <int>& dependents);
+    bool checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited );
 
 };
 #endif
