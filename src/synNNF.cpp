@@ -27,7 +27,7 @@ void synSolver::init()
         if (! tseitinY[it])
         {
             activeY[it] = true;
-            cout << "Var " << it << " is in ActiveY " << endl;
+         //   cout << "Var " << it << " is in ActiveY " << endl;
         }
     }
 
@@ -241,9 +241,11 @@ void synSolver::attachComponent()
        //decStack.top().getDTNode()->print(5);
         
 	    bcpImplQueue.clear();
-        CComponentId & refSupComp = decStack.TOSRefComp();
+        //CComponentId & refSupComp = decStack.TOSRefComp();
+        CComponentId & refSupComp = decStack.TOS_NextComp();
+
         cout << "In attach Component. RefsupComp " << refSupComp.id << endl;
-        if (refSupComp.countCls() > 1)
+        if (refSupComp.countCls() >= 1)
         {
             DTNode * newNode = new DTNode(DT_AND, num_Nodes++);
             //add the literals corresponding to the clauses containing Xvar
@@ -261,14 +263,14 @@ void synSolver::attachComponent()
 
             for (itCl = refSupComp.clsBegin(); *itCl != clsSENTINEL; itCl++)
             {
-                /* cout << "printing Active Clause " << *itCl << endl;
-                printClause (*itCl);
-                cout << endl;
-                printActiveClause (*itCl);
-                cout << endl;
-                if (isSatisfied(*itCl))
-                    cout << "Clause above is satisfied " << endl;
-                */
+                // cout << "printing Active Clause " << *itCl << endl;
+                //printClause (*itCl);
+                //cout << endl;
+               // printActiveClause (*itCl);
+               // cout << endl;
+                //if (isSatisfied(*itCl))
+                 //   cout << "Clause above is satisfied " << endl;
+                
 				if (!isSatisfied(*itCl))
                 {
                     allSatCl = false;
@@ -423,9 +425,10 @@ bool synSolver::recordRemainingComps()
                 
                 if (lookUpVars[*vt] == IN_SUP_COMP )
                 {
-                    if (getVar(*vt).isActive() && activeY[origVar] )//  || tseitinY[origVar])
+                    if (getVar(*vt).isActive() && activeY[origVar] ) //  || tseitinY[origVar])
+                    //if (getVar(*vt).isActive() && activeY[origVar] )//  || tseitinY[origVar])
                     {
-                       cout << "Added " << *vt << " aka " << origVar << " to comp stack in RRC" << endl;
+                     //  cout << "Added " << *vt << " aka " << origVar << " to comp stack in RRC" << endl;
                  //      cout << "Considering activeY " << *vt << " origVar " << origVar << " in RRC" << endl;
                         decStack.TOS_addRemComp();
                         decStack.lastComp().setTrueClauseCount(0);
@@ -461,6 +464,7 @@ bool synSolver::recordRemainingComps()
                  if ( getVar(*vt).isActive() && lookUpVars[*vt] == IN_SUP_COMP )
                  {
                             lookUpVars[*vt] = SEEN;
+                      //      cout << "In TseitinVars section : Adding " << *vt << " aka " << origVar << "to comp stack" << endl;
                             componentSearchStack.push_back(*vt);
                             newVar = true;
                   }
@@ -476,6 +480,7 @@ bool synSolver::recordRemainingComps()
                         int origVar = origTranslation[getVar(*vt).getLitIdT(true).toSignedInt()];
                         if (lookUpVars[*vt] == SEEN )
                         {
+                       //         cout << "Calling getComp for variable " << *vt << " aka " << origVar << endl;
                                 getComp(*vt, decStack.TOSRefComp(), lookUpCls, lookUpVars);
                         }
               }
@@ -511,9 +516,9 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 
     int origVar = origTranslation[theVar];
     bool tseitinComp = false;
-    if (tseitinY[origVar])
+    if (! activeY[origVar])
     {
-        cout << "This is a tseitinVar - hence tseitinCOmponent " << origVar << endl;
+        //cout << "This is a tseitinVar - hence tseitinCOmponent " << origVar << endl;
         tseitinComp = true;
     }
 
@@ -622,7 +627,7 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 		{
 			decStack.lastComp().addVar(*vt);
 			lookUpVars[*vt] = IN_OTHER_COMP;
-           // cout << "Adding var " << *vt << " to comp " << decStack.lastComp().id << endl;
+         //   cout << "Adding var " << *vt << " to comp " << decStack.lastComp().id << endl;
 		}
 
 	//decStack.lastComp().addVar(varsSENTINEL); // Moved to above
@@ -636,13 +641,13 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 		{
 			decStack.lastComp().addCl(*itCl);
 			lookUpCls[*itCl] = IN_OTHER_COMP;
-            //cout << "adding clause " << *itCl << " to comp " << decStack.lastComp().id << endl; 
+          //  cout << "adding clause " << *itCl << " to comp " << decStack.lastComp().id << endl; 
            // printClause(*itCl);
 		}
 	//decStack.lastComp().addCl(clsSENTINEL); // Moved to above
 	
 	decStack.lastComp().addTrueClauseCount(nClausesSeen + nBinClsSeen);
-    cout << "No of clauses in comp " << decStack.lastComp().id << " is "  <<  nClausesSeen + nBinClsSeen << endl;
+   // cout << "No of clauses in comp " << decStack.lastComp().id << " is "  <<  nClausesSeen + nBinClsSeen << endl;
 
    // cout <<" Added new component to decStack " << endl;
    if (nClausesSeen == 0)
@@ -1088,8 +1093,13 @@ void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <se
     set<int> curr_leaves;
     if (graph[node].size () <= 0) //This is a leaf?
     {
-        //cout << "Leaf Node " <<  node << endl;
-        
+        curr_leaves.insert(node);
+        leaves[node] = curr_leaves; //return itself
+        visited[node] = true;
+        return;
+    }
+    if (graph[node].size() == 1 && graph[node].find(0) != graph[node].end())
+    {
         curr_leaves.insert(node);
         leaves[node] = curr_leaves; //return itself
         visited[node] = true;
@@ -1218,7 +1228,7 @@ void synSolver::printTseitinModulesForOperators (ofstream & ofs,  vector<set <in
 
                 if (tseitinY[child] )
                 {
-                        if (depCONST.find (count) != depCONST.end() || depCONST.find(-count) != depCONST.end()) //It is a constant
+                        if (depCONST.find (child) != depCONST.end() || depCONST.find(-child) != depCONST.end()) //It is a constant
                         {
 
                             if (pol)
@@ -1444,8 +1454,12 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                         }
                         else
                         {
-				                name = getInputNegName(varNum);
-                //instead of varnum print DT_BOT
+				              name = getInputNegName(varNum);
+                              if (negXT.find (varNum) == negXT.end())
+                              {
+                                    ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" <<  name <<endl;
+                                    negXT.insert(varNum);
+                              }
                         }
                         visited[node_id] = name;
                      }
@@ -1463,7 +1477,11 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                             //cout << endl;
                             for (auto & lit: leaves[varNum])
                             {
-                                if (activeY[lit])
+                               if (depCONST.find(lit) != depCONST.end())
+                                     constr_name  += "_on";
+                               else  if (depCONST.find(-lit) != depCONST.end())
+                                     constr_name  += "_off";
+                                else if (activeY[lit])
                                 {
                                     if (assign.find(lit) != assign.end())
                                         constr_name  += "_on";
@@ -1497,8 +1515,15 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                     for (auto & lit: leaves[varNum])
                                     {
                                         ofs << " " << tname << "_INP_" << lit << "="  ;
-                                        if (activeY[lit])
+                                        if (depCONST.find(lit) != depCONST.end())   //Tseitin Constant?
+                                                 ofs << "on";
+                                       else if (depCONST.find(-lit) != depCONST.end())
+                                                    ofs <<  "off";
+
+                                        else
                                         {
+                                            if (activeY[lit])
+                                            {
                                                 if (assign.find (lit) != assign.end())
                                                     ofs << "on " ;
                                                 else
@@ -1506,10 +1531,9 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                                     ofs << "off " ;
                                                 else
                                                     assert (false);
-                                        }
-                                        else //X
-                                        {
-                                            ofs << getInputName(lit);
+                                            }
+                                            else 
+                                                     ofs << getInputName(lit); //X
 
                                         }
 
@@ -1623,8 +1647,12 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 
                             for (auto & lit: leaves[varNum])
                             {
-                                if (activeY[lit])
-                                {
+                                 if (depCONST.find(lit) != depCONST.end())
+                                        constr_name += "_on";
+                                 else if (depCONST.find(-lit) != depCONST.end())
+                                        constr_name +=  "_off";
+                                 else if (activeY[lit])
+                                 {
                                     if (assign.find(lit) != assign.end())
                                     {
                                         constr_name  += "_on";
@@ -1762,8 +1790,17 @@ void synSolver:: writeOFF(ofstream& ofs) {
     ofs<<".end"<<endl;	
 }
 
+void synSolver:: printSet(set <int>  &s, string desc )
+{
+    cout << desc << " : " ;
+
+    for (auto &sit : s)
+        cout << "  " << sit  ;
+    cout << endl;
+}
+
 /*Verification */
-bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited )
+bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited, bool onlyActiveY )
 {
     int node_id = node->getID(); 
     //already visited
@@ -1775,9 +1812,19 @@ bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visit
     {
        //int origVar = origTranslation[node->getVal()]; Doing this post printing ... so no need to translate ... already done before print.
        int origVar = abs(node->getVal());
-       //cout << "At lit " << node->getVal() << " Orig Node " << origVar << endl;
-       if (activeY[origVar] || tseitinY[origVar])
-            supp.insert(node->getVal());
+
+       if (onlyActiveY)
+       {
+            if(activeY[origVar])
+            {
+                 supp.insert(node->getVal());
+                // cout << "Adding " << node->getVal() << " to the support of "  << node_id << endl;
+            }
+       }
+       else
+       {    if (activeY[origVar] || tseitinY[origVar])
+                 supp.insert(node->getVal());
+       }
        visited[node_id] = supp;
        return true;
     }
@@ -1787,34 +1834,39 @@ bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visit
 
 //It is either an AND or OR node
 	for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) 
-        if (! checkStructProp_rec(*it, visited))
-            return false;
-
-    if (node->getType() == DT_AND) //Checking for wDNNF
     {
-        for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) 
+        if (! checkStructProp_rec(*it, visited, onlyActiveY))
+            return false;
+        int c_node_id = (*it)->getID(); 
+        set<int> & c_supp = visited[c_node_id];
+        
+        if (supp.size() == 0)   //Set is empty
+            supp = c_supp;
+        else
         {
-            set<int>  child_supp;
-            for (auto &sit : child_supp)
-            {
-                for (auto cit = node->getChildrenBegin(); cit != node->getChildrenEnd(); cit++) 
+                for (auto & cit : c_supp)
                 {
-                        if (cit != it)
+                        if (node->getType() == DT_AND)    //wDNNF check
                         {
-                            int c_node_id = (*cit)->getID(); 
-                            set<int> & c_supp = visited[c_node_id];
-                            if (c_supp.find (-sit) != c_supp.end())
+
+                            if (supp.find (-cit) != supp.end()) //The negation of a literal is found in a subtree
                             {
-                                cout << "Structural Property failed for  " << sit << endl;
-                                return false;
+                                    cout << "Structural Property failed for node " << node_id << endl;
+                                    printSet(supp, "Node support");
+                                    printSet(c_supp, "Child support");
+                                    if (tseitinY[abs(cit)])
+                                        cout << "The property failed for a tseitin node " << endl;
+                                    return false;
                             }
+                         }
 
-                        }
-                }
-            }
-         }
+                         supp.insert(cit);
+                  }
 
+           }
     }
+   visited[node_id] = supp;
+
     return true;
 }
 //Check the structural property - is the dtree in wDNNF. If the structural prop is not met, then one needs to do a semantic synNNF check.
@@ -1827,5 +1879,8 @@ bool synSolver:: checkStructProp (  )
     else
         root = decStack.top().getDTNode();
     map <int, set<int> > visited;
-    return checkStructProp_rec ( root, visited); 
+    if (checkStructProp_rec(root, visited, true))
+        cout << "Struct Prop successful for only active Y variables (tseitin variables not considered) " << endl;
+    visited.clear();
+    return checkStructProp_rec ( root, visited, false); 
 }
