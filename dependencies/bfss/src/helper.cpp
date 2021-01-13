@@ -3618,7 +3618,6 @@ int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate) {
 	int status, numUnate, totalNumUnate = 0;
 	assert(unate.size()==numY);
 //Equate the X's and Y's. 
- 	int x_iCnf, y_iCnf; 
 	lit Lits[3];
 	for(int i = 0; i < numX; ++i) {
 		Lits[0] = toLitCond( SCnf->pVarNums[ varsXF[i]], 0 );

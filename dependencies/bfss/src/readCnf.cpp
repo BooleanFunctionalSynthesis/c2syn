@@ -174,7 +174,7 @@ void writeOutput (char* qdFileName)
 	baseFileName = baseFileName.substr(baseFileName.find_last_of("/") + 1);  //Get the file name;
 	baseFileName.erase(baseFileName.find (".qdimacs"), string::npos); //This contains the code for the raw file name;
 	cout << "BaseName:     " << baseFileName << endl;
-	string varFileName = baseFileName + "_var.txt";
+	string varFileName = baseFileName + "_varstoelim.txt";
 	string aigFileName = baseFileName + ".v" ;
    
 	string depFileName = baseFileName + "_dep.txt" ;

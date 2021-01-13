@@ -1800,7 +1800,7 @@ void synSolver:: printSet(set <int>  &s, string desc )
 }
 
 /*Verification */
-bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited, bool onlyActiveY )
+bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited, bool onlyActiveY, ofstream &ofs)
 {
     int node_id = node->getID(); 
     //already visited
@@ -1833,9 +1833,10 @@ bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visit
         return true; //Const1 and Const0
 
 //It is either an AND or OR node
+    bool propSuccess = true;
 	for (auto it = node->getChildrenBegin(); it != node->getChildrenEnd(); it++) 
     {
-        if (! checkStructProp_rec(*it, visited, onlyActiveY))
+        if (! checkStructProp_rec(*it, visited, onlyActiveY, ofs))
             return false;
         int c_node_id = (*it)->getID(); 
         set<int> & c_supp = visited[c_node_id];
@@ -1854,9 +1855,11 @@ bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visit
                                     cout << "Structural Property failed for node " << node_id << endl;
                                     printSet(supp, "Node support");
                                     printSet(c_supp, "Child support");
+                                    ofs << abs(cit) << endl;
+                                    propSuccess = false;
                                     if (tseitinY[abs(cit)])
                                         cout << "The property failed for a tseitin node " << endl;
-                                    return false;
+                                  //  return false;
                             }
                          }
 
@@ -1867,7 +1870,7 @@ bool synSolver:: checkStructProp_rec ( DTNode *node, map <int, set<int> >& visit
     }
    visited[node_id] = supp;
 
-    return true;
+    return propSuccess;
 }
 //Check the structural property - is the dtree in wDNNF. If the structural prop is not met, then one needs to do a semantic synNNF check.
 bool synSolver:: checkStructProp (  )
@@ -1879,8 +1882,14 @@ bool synSolver:: checkStructProp (  )
     else
         root = decStack.top().getDTNode();
     map <int, set<int> > visited;
-    if (checkStructProp_rec(root, visited, true))
+  //  string failPropFileName = baseFileName + ".semprop.txt";
+    ofstream ofs (baseFileName+".semprop.txt", ofstream::out);
+
+    if (checkStructProp_rec(root, visited, true, ofs))
         cout << "Struct Prop successful for only active Y variables (tseitin variables not considered) " << endl;
     visited.clear();
-    return checkStructProp_rec ( root, visited, false); 
+    bool val =  checkStructProp_rec ( root, visited, false, ofs); 
+
+    ofs.close();
+    return val;
 }

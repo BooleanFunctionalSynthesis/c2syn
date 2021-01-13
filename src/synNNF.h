@@ -68,7 +68,7 @@ private:
     void DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> > & leaves, bool visited[]);
     void printTseitinModules (ofstream& ofs, vector <set <int> > & leaves);
     void printTseitinModulesForOperators (ofstream & ofs,  vector<set <int> > & leaves, int op, int Tvar, vector <int>& dependents);
-    bool checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited, bool );
+    bool checkStructProp_rec ( DTNode *node, map <int, set<int> >& visited, bool, ofstream& ofs);
     void printSet(set <int>  &s, string desc );
 };
 #endif
