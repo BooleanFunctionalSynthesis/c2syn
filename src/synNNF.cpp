@@ -9,15 +9,15 @@ synSolver::synSolver()
 
 }
 
-void synSolver::init()
+void synSolver::init(bool solved)
 {
     int Y;
     bool containsActY = false;
     //cout << " Size of all Clauses " << allClauses.size() << endl;
 
-    int numVars = varsX.size() + varsY.size();
-    activeY.resize(numVars+1, 0); //All vars not active to begin with
-    tseitinY.resize(numVars+1, 0); //All vars not tseitin to begin with
+    cout << "# Y vars : " << varsY.size() << endl;
+    activeY.resize(originalVarCount + 1, false); //All vars not active to begin with
+    tseitinY.resize(originalVarCount + 1, false); //All vars not tseitin to begin with
 
     for (auto &it: tseitinVars)
         tseitinY[it] = true; //Assigning true to TseitinVars
@@ -31,99 +31,162 @@ void synSolver::init()
         }
     }
 
+    cout << "In SynNNF init : # Clauses " << allClauses.size() << endl;
     set <int> uOClause; //original unary clauses
-    for (int i = 0; i < allClauses.size(); i++)
+    int windex = 0;
+    int xindex = 0;
+    if (!solved)
     {
-                //if (tseitinClauses[i])  //Ignore the clause as it is a tseitin clause
-                 //   continue;   
-                containsActY = false;  
+        for (int i = 0; i < allClauses.size(); i++)
+        {
+                 //   if (tseitinClauses[i])  //Ignore the clause as it is a tseitin clause
+                  //     continue;   
+                    containsActY = false;  
 
-                //cout << " Clause " << i ;
-                if (allClauses[i].size() == 1)  //collect the constants -- 
-                {
-                    uOClause.insert (allClauses[i][0]);
-                }
-                else
-                {
-                    for (int j = 0; j < allClauses[i].size(); j++)
+                    //cout << " Clause " << i ;
+                    if (allClauses[i].size() == 1)  //collect the constants -- 
                     {
-                        Y = abs (allClauses[i][j]);               
-                        
-                        //cout << " " << allClauses[i][j] ;
-                        if (activeY[Y] || tseitinY[Y])
-                            containsActY = true;
+                        uOClause.insert (allClauses[i][0]);
                     }
-         //       cout << endl ;
-                    if (containsActY)
-                        workingClauses.push_back(allClauses[i]);
                     else
                     {
-                        onlyXClauses.push_back(allClauses[i]);
-                    //    cout << "Clause" << i << "contains only X vars " << endl;
+                        for (int j = 0; j < allClauses[i].size(); j++)
+                        {
+                            Y = abs (allClauses[i][j]);               
+                            
+                          //  cout << " " << allClauses[i][j] ;
+                            if (activeY[Y] || tseitinY[Y])
+                                containsActY = true;
+                        }
+                  //  cout << endl ;
+                     //   cout << "i:  " << i << " "  << endl;
+                        if (containsActY)
+                            workingClauses[windex++] = allClauses[i];
+                            //workingClauses.push_back(allClauses[i]);
+                        else
+                        {
+                            onlyXClauses[xindex++] = allClauses[i];
+                        //    cout << "Clause" << i << "contains only X vars " << endl;
+                        }
+
+    //                    cout << " Size of workingClauses " << windex << ". Size of onlyX clauses "  << xindex << endl;
                     }
-
-                    //cout << " Size of workingClauses " << workingClauses.size() << ". Size of onlyX clauses "  << onlyXClauses.size() << endl;
-                }
-
-    }
+        }
 //Now handle the constants -- Does a constant X make sense?
-    for (auto &it : depCONST)
-    {
-        vector <int> uClause ;
-        uClause.push_back (it);
-        if (activeY[abs(it)] || tseitinY[abs(it)])
-        {
-              workingClauses.push_back(uClause);
-        }
-        else
-        {
-             onlyXClauses.push_back(uClause);
-        }
-        if (uOClause.find(it) != uOClause.end())
-            uOClause.erase (it);
-//TEMP FIX
-        if (depAND.count(it) > 0)    //There is an and node also with the const - can happen in the presence of unates. //Temp fix.. Ideally change readCnf.cpp so that this does not happen.
-        {
-           depAND.erase(it); 
-        }
-        if (depOR.count(it) > 0)    //There is an or node also with the const - can happen in the presence of unates.
-        {
-           depOR.erase(it); 
-        }
-        if (depXOR.count(it) > 0)    //There is an and node also with the const - can happen in the presence of unates.
-        {
-           depXOR.erase(it); 
-        }
+        cout << "Adding constants " ;
 
-    }
-    assert (uOClause.size () == 0); //all original unary clauses covered.
+        for (auto &it : depCONST)
+        {
+            cout << " " << it ;
+            vector <int> uClause ;
+            uClause.push_back (it);
+            int cvar = abs(it);
+            if (activeY[cvar] || tseitinY[cvar])
+            {
+                  workingClauses[windex++] = uClause;
+            }
+            else
+            {
+   //             cout << "Adding " << it  << " at onlyXClause " << xindex << endl;
+                 onlyXClauses[xindex++] = uClause;
+            }
+            if (uOClause.find(cvar) != uOClause.end())  //Check for both signs
+                uOClause.erase (cvar);
+    //TEMP FIX
+            if ((it < 0) && uOClause.find(it) != uOClause.end())
+                uOClause.erase (it);
+        //    if (depAND.count(cvar) > 0)    //There is an and node also with the const - can happen in the presence of unates. //Temp fix.. Ideally change readCnf.cpp so that this does not happen.
+         //   {
+          //     cout << cvar << "is a const. And also a Tseitin" << endl;
+           //    assert (false);
+            //   //depAND.erase(cvar); 
+            //}
+            //if (depOR.count(cvar) > 0)    //There is an or node also with the const - can happen in the presence of unates.
+           // {
+            //   cout << cvar << "is a const. And also a Tseitin " << endl;
+             //  assert (false);
+               //depOR.erase(cvar); 
+            //}
+            //if (depXOR.count(cvar) > 0)    //There is an and node also with the const - can happen in the presence of unates.
+            //{
+             //  cout << cvar << "is a const. Removing from depXOR " << endl;
+              // assert (false);
+               //depXOR.erase(cvar); 
+            //}
+
+            //cout << endl;
+        }
+        assert (uOClause.size () == 0); //all original unary clauses covered.
+        workingClauses.resize(windex);
+        onlyXClauses.resize(xindex);
+        cout << " Size of workingClauses " << windex << ". Size of onlyX clauses "  << xindex << endl;
+/*
+    int extraVar = 0;
+    for (auto &it : depAND)
+        if (abs(it.first) > originalVarCount)
+            extraVar++;
+    for (auto &it : depOR)
+        if (abs(it.first) > originalVarCount)
+            extraVar++;
+    for (auto &it : depXOR)
+        if (abs(it.first) > originalVarCount)
+            extraVar++;
+
+    cout << "No. of extra Vars " << extraVar << endl;
+
+*/
+     }
 }
 
-void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<int>& Xvar, vector<int>& Yvar, vector<bool>& TseitinCls, vector<int> & tVars, string fileName, set <int> & dc, map<int, vector<int> > & da, map<int, vector<int> > & dor, map<int, vector<int> > & dx)
+void synSolver::CreateSynNNF(vector<vector<int> > &cls, vector<bool>&tcls, vector<int>& Xvar, vector<int>& Yvar, int & origNumVars, vector<int> & tVars, string fileName, set <int> & dc, map<int, vector<int> > & da, map<int, vector<int> > & dor, map<int, vector<int> > & dx, bool solved)
 {
         //cout << " In CreateSynNNF" << endl;
         allClauses = cls;
+        tseitinClauses = tcls;
         varsX = Xvar;
         varsY = Yvar; 
         tseitinVars = tVars;
-        tseitinClauses = TseitinCls; //set<int> actY; 
+        originalVarCount = origNumVars;
         baseFileName = fileName;
         depCONST = dc;
         depAND = da;
         depOR = dor;
         depXOR = dx;
-        init ();
+        workingClauses.resize(allClauses.size() + dc.size());
+        onlyXClauses.resize(allClauses.size() + dc.size());
+        leaves.resize(originalVarCount + 1);
+        init (solved);
+        tVars.clear();
 
-        createfromPrep( workingClauses, Xvar.size() + Yvar.size()); //Create the data structures;
+      //  for (int i = 0; i < tseitinClauses.size(); i++)
+       //     if (! tseitinClauses[i])
+        //        cout << "In CreateSynNNF: Clause " << i << " is not a tseitinClause " << endl;
 
-        solve (NULL);
+        if (! solved)
+        {
+            createfromPrep( workingClauses, origNumVars); //Create the data structures;
+            //cout << "In createSynNNF " << endl;
+	        //for (int i = 1; i < origTranslation.size(); i++)
+             //       cout << "origTranslation " << i << " = " << origTranslation[i]  << endl;
+            processTseitins ( true);
+            solve (NULL);
+        }
         cout << endl;
-        printSynNNF();
+        printSynNNF( solved );
+        allClauses.clear();
         cout << endl;
-        if (!checkStructProp())
-            cout << "Struct Prop failed. Need to check Semantic Prop" << endl;
-        else    
-            cout <<"Struct Prop succeeded : In synNNF " << endl;
+
+        //Check Structural Property
+
+        if (! solved )
+        {
+            if (!checkStructProp())
+                cout << "Struct Prop failed. Need to check Semantic Prop" << endl;
+            else    
+                cout <<"Struct Prop succeeded : In synNNF " << endl;
+        }
+        else
+            cout << "Struct Prop trivially satisfied " << endl;
 
 }
 
@@ -158,6 +221,8 @@ bool synSolver::decide()
 		}
 	}
 
+	//checkCachedCompVal:
+	static CRealNum cacheVal;
         
 	if (!findVSADSDecVar(theLit, decStack.TOS_NextComp())
 			|| decStack.TOS_NextComp().getClauseCount() == 0) // i.e. component satisfied
@@ -166,12 +231,17 @@ bool synSolver::decide()
             cout << "Next Comp " << decStack.TOS_NextComp().id << " has no clauses " << endl;
         else
         {
-            cout << " findVSADDecVar returned false. No Y variable left in the component " << decStack.TOS_NextComp().id << endl;
+            //cout << " findVSADDecVar returned false. No Y variable left in the component " << decStack.TOS_NextComp().id << endl;
 
             if (OnlyXandTseitin(decStack.TOS_NextComp()))
             {
                 attachComponent();
                 handleSolution();
+                if (CSolverConf::allowComponentCaching && xFormulaCache.extract( decStack.TOS_NextComp(), cacheVal, decStack.top().getCurrentDTNode()))
+                {
+                    decStack.top().includeSol(cacheVal);
+                    theRunAn.addValue(SOLUTION, decStack.getDL());
+                }
                 decStack.TOS_popRemComp();
                 return false;
             }
@@ -185,8 +255,6 @@ bool synSolver::decide()
 		return false;
 	}
 
-	//checkCachedCompVal:
-	static CRealNum cacheVal;
 
 	//decStack.TOS_NextComp();
 
@@ -202,7 +270,7 @@ bool synSolver::decide()
 	/////////////////////////////
 
 	// Create the nodes
-    cout << "Deciding "  << theLit.toSignedInt() << endl;
+    //cout << "Deciding "  << theLit.toSignedInt() << endl;
 	DTNode * newNode = new DTNode(DT_OR, num_Nodes++);
 	DTNode * left = new DTNode(DT_AND, num_Nodes++);
 	DTNode * right = new DTNode(DT_AND, num_Nodes++);
@@ -240,11 +308,11 @@ void synSolver::attachComponent()
   //  vector <LiteralIdT> allLits;
        //decStack.top().getDTNode()->print(5);
         
-	    bcpImplQueue.clear();
+	    //bcpImplQueue.clear();
         //CComponentId & refSupComp = decStack.TOSRefComp();
         CComponentId & refSupComp = decStack.TOS_NextComp();
 
-        cout << "In attach Component. RefsupComp " << refSupComp.id << endl;
+        //cout << "In attach Component. RefsupComp " << refSupComp.id <<". #Clauses : " << refSupComp.countCls() << endl;
         if (refSupComp.countCls() >= 1)
         {
             DTNode * newNode = new DTNode(DT_AND, num_Nodes++);
@@ -266,10 +334,11 @@ void synSolver::attachComponent()
                 // cout << "printing Active Clause " << *itCl << endl;
                 //printClause (*itCl);
                 //cout << endl;
-               // printActiveClause (*itCl);
-               // cout << endl;
+                //printActiveClause (*itCl);
+                //cout << endl;
                 //if (isSatisfied(*itCl))
                  //   cout << "Clause above is satisfied " << endl;
+                //else
                 
 				if (!isSatisfied(*itCl))
                 {
@@ -293,7 +362,7 @@ void synSolver::attachComponent()
                                 DTNode *litNode = get_lit_node (curr.toSignedInt());
                                 litNode->addParent(cl, true);
                                 
-	                            bcpImplQueue.push_back(AntAndLit(NOT_A_CLAUSE, curr));
+	                        //    bcpImplQueue.push_back(AntAndLit(NOT_A_CLAUSE, curr));
                                 
                              }
                         }
@@ -310,7 +379,7 @@ void synSolver::attachComponent()
                             else
                             {
                                    prevNode->addParent(newNode, true);
-	                               bcpImplQueue.push_back(AntAndLit(NOT_A_CLAUSE, *prev));
+	                         //      bcpImplQueue.push_back(AntAndLit(NOT_A_CLAUSE, *prev));
                             }
                        }
                         
@@ -324,7 +393,7 @@ void synSolver::attachComponent()
                 //BEGIN traverse binary clauses
                         for (itL = pActVar->getBinLinks(true).begin(); *itL != SENTINEL_LIT; itL++)
                         {
-                                int origVar = origTranslation[itL->toSignedInt()];
+                                int origVar = origTranslation[itL->toVarIdx()];
                                 if (getVar (*itL). isActive () && ! (activeY[origVar])) //Not a Y var
                                 {
                                         //cout << "Binary clause between " << *vt  << " and "  << itL->toSignedInt() << endl;
@@ -342,7 +411,7 @@ void synSolver::attachComponent()
                         }
                         for (itL = pActVar->getBinLinks(false).begin(); *itL != SENTINEL_LIT; itL++)
                         {
-                                int origVar = origTranslation[itL->toSignedInt()];
+                                int origVar = origTranslation[itL->toVarIdx()];
                                 if (getVar (*itL). isActive () && ! (activeY[origVar])) //Not a Y var
                                 {
                                          //   cout << "Binary clause between " << *vt  << " (false) and "  << itL->toSignedInt() << endl;
@@ -395,6 +464,7 @@ bool synSolver::recordRemainingComps()
    // printComponent(refSupComp);
     //cout << endl;
 
+
 	for (itCl = refSupComp.clsBegin(); *itCl != clsSENTINEL; itCl++)
 	{
 		lookUpCls[*itCl] = IN_SUP_COMP;
@@ -420,15 +490,17 @@ bool synSolver::recordRemainingComps()
       {
         //What happens if only  X vars are present in refSupComp
                // cout << "in RRC: var " << *vt << " lit: " << getVar(*vt).getLitIdT(true).toVarIdx() << endl;
-                int origVar = origTranslation[getVar(*vt).getLitIdT(true).toSignedInt()];
+                //int origVar = origTranslation[getVar(*vt).getLitIdT(true).toSignedInt()];
+                int origVar = origTranslation[*vt];
                 //cout << "OrigVar " << origVar << " *vt " << *vt << endl;
                 
                 if (lookUpVars[*vt] == IN_SUP_COMP )
                 {
-                    if (getVar(*vt).isActive() && activeY[origVar] ) //  || tseitinY[origVar])
-                    //if (getVar(*vt).isActive() && activeY[origVar] )//  || tseitinY[origVar])
+                    //if (getVar(*vt).isActive() && activeY[origVar] ) //  || tseitinY[origVar])
+                    if (getVar(*vt).isActive() && (activeY[origVar]  || containsActiveY(origVar))) // || tseitinY[origVar]))
                     {
-                     //  cout << "Added " << *vt << " aka " << origVar << " to comp stack in RRC" << endl;
+                      // cout << "Added " << *vt << " aka " << origVar << " to comp stack in RRC" << endl;
+                       
                  //      cout << "Considering activeY " << *vt << " origVar " << origVar << " in RRC" << endl;
                         decStack.TOS_addRemComp();
                         decStack.lastComp().setTrueClauseCount(0);
@@ -437,10 +509,24 @@ bool synSolver::recordRemainingComps()
                         getComp(*vt, decStack.TOSRefComp(), lookUpCls, lookUpVars);
                         decStack.lastComp().addVar(varsSENTINEL);
                         decStack.lastComp().addCl(clsSENTINEL);
-                        //cout << "new component " << decStack.lastComp().id << endl;
+                        cout << "new component " << decStack.lastComp().id ;
+                        cout << " with " << decStack.lastComp().getClauseCount() << "  clauses " ;
+                        cout << " and " << decStack.lastComp().countVars () << " vars "  << endl;
                         newComp = true;
                         //printComponent (decStack.lastComp());
                         //cout << endl;
+                       /* if (decStack.lastComp().getClauseCount() < 10)
+                        {
+                           for (itCl = decStack.lastComp().clsBegin(); *itCl != clsSENTINEL; itCl++)
+                           {
+                                        printActiveClause (*itCl);
+                                        cout << endl;
+                                        if (isSatisfied(*itCl))
+                                            cout << "Clause above is satisfied " << endl;
+                           }
+                        }
+                        */
+                           
                     }
                     else
                     {
@@ -451,49 +537,30 @@ bool synSolver::recordRemainingComps()
                     
                 }
         }
-    cout << "In RRC: RefSupComp "  << refSupComp.id << endl;
-    if (newComp)
-            cout << "new component " << decStack.lastComp().id << endl;
-        //After handling Y vars; handle tseitin vars and X vars.
     if (otherVars)
     {
         int newVar = false;
+        VarIdT vit;
         for (vt = refSupComp.varsBegin(); *vt != varsSENTINEL; vt++) 
         {
-                int origVar = origTranslation[getVar(*vt).getLitIdT(true).toSignedInt()];
+                int origVar = origTranslation[*vt];
                  if ( getVar(*vt).isActive() && lookUpVars[*vt] == IN_SUP_COMP )
                  {
                             lookUpVars[*vt] = SEEN;
-                      //      cout << "In TseitinVars section : Adding " << *vt << " aka " << origVar << "to comp stack" << endl;
                             componentSearchStack.push_back(*vt);
                             newVar = true;
+                            vit = *vt;
                   }
          }
          if (newVar)
          {
               decStack.TOS_addRemComp();
               decStack.lastComp().setTrueClauseCount(0);
-              cout << "Now handling tseitinVars" << endl;
-                //There are variables to add in another component
-              for (vt = refSupComp.varsBegin(); *vt != varsSENTINEL; vt++) 
-              {
-                        int origVar = origTranslation[getVar(*vt).getLitIdT(true).toSignedInt()];
-                        if (lookUpVars[*vt] == SEEN )
-                        {
-                       //         cout << "Calling getComp for variable " << *vt << " aka " << origVar << endl;
-                                getComp(*vt, decStack.TOSRefComp(), lookUpCls, lookUpVars);
-                        }
-              }
+              getComp(vit, decStack.TOSRefComp(), lookUpCls, lookUpVars);
               decStack.lastComp().addVar(varsSENTINEL);
               decStack.lastComp().addCl(clsSENTINEL);
-              cout << "new component " << decStack.lastComp().id << endl;
-             
-       //       attachComponent();
           }
       } 
-     // if (!newComp && otherVars) //Does this even get called??
-      //        attachComponent();
-
 
 	decStack.TOS_sortRemComps();
 	return true;
@@ -502,7 +569,7 @@ bool synSolver::recordRemainingComps()
 bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 		viewStateT lookUpCls[], viewStateT lookUpVars[])
 {
-    /* Moved to above */
+//     Moved to above 
 //	componentSearchStack.clear();
 //	lookUpVars[theVar] = SEEN;
 	//componentSearchStack.push_back(theVar);
@@ -516,11 +583,13 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 
     int origVar = origTranslation[theVar];
     bool tseitinComp = false;
-    if (! activeY[origVar])
+    if (! (activeY[origVar] || tseitinY[origVar]))
     {
-        //cout << "This is a tseitinVar - hence tseitinCOmponent " << origVar << endl;
+        //cout << "This is an X comp " << origVar << endl;
         tseitinComp = true;
     }
+        
+
 
 	unsigned int nClausesSeen = 0, nBinClsSeen = 0;
 
@@ -528,17 +597,21 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 	// the for-loop is applicable here because componentSearchStack.capacity() == countAllVars()
 	{
 		pActVar = &getVar(*vt);
+         //cout << "In getComp.Processing " << *vt << " from comp stack " <<  endl; 
 		//BEGIN traverse binary clauses
 		for (itL = pActVar->getBinLinks(true).begin(); *itL != SENTINEL_LIT; itL++)
 			if (lookUpVars[itL->toVarIdx()] == IN_SUP_COMP )
 			{
-               // cout << "In getComp.Processing " << itL->toVarIdx() << " Unsigned Int " << itL->toUInt() << " activeY is " << activeY[itL->toVarIdx()] << " or " << activeY[itL->toUInt()] << endl;
 				nBinClsSeen++;
 				lookUpVars[itL->toVarIdx()] = SEEN;
                 //Dsharp translates the cnf id's... need to work with the original ids so translating back
-                int origVar = origTranslation[itL->toSignedInt()];
-                if (activeY[origVar]  ||  tseitinComp)  //Add to the component only if output variable
+                int origVar = origTranslation[itL->toVarIdx()];
+                //cout << "In getComp - pos bin links: Processing " << itL->toVarIdx() << "origVar " << origVar << endl;
+                //if (activeY[origVar]  ||  tseitinComp)  //Add to the component only if output variable
+                //if ((activeY[origVar] || tseitinY[origVar]) && !tseitinComp)   //Add to the component only if output variable or only X vars remaining
+                if ((activeY[origVar] || containsActiveY(origVar)) && !tseitinComp)   //Add to the component only if output variable or only X vars remaining
                 {
+          //          cout << "Adding  " << origVar << " aka " << itL->toVarIdx() << " to the component search stack " << endl;
 				    componentSearchStack.push_back(itL->toVarIdx());
 				    getVar(*itL).scoreDLIS[itL->polarity()]++;
 				    pActVar->scoreDLIS[true]++;
@@ -549,13 +622,17 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 			{
 				nBinClsSeen++;
 				lookUpVars[itL->toVarIdx()] = SEEN;
-                int origVar = origTranslation[itL->toSignedInt()];
-                if (activeY[origVar] || tseitinComp)  //Add to the component only if output variable
+                int origVar = origTranslation[itL->toVarIdx()];
+               // cout << "In getComp - neg bin links.Processing " << itL->toVarIdx() << "origVar " << origVar << endl;
+                //if ((activeY[origVar] || tseitinY[origVar]) && !tseitinComp)   //Add to the component only if output variable or only X vars remaining
+                if ((activeY[origVar] || containsActiveY(origVar)) && !tseitinComp)   //Add to the component only if output variable or only X vars remaining
                 {
+           //         cout << "Adding  " << origVar << " aka " << itL->toVarIdx() << " to the component search stack " << endl;
 				    componentSearchStack.push_back(itL->toVarIdx());
                     getVar(*itL).scoreDLIS[itL->polarity()]++;
                     pActVar->scoreDLIS[false]++;
              //       cout << "Adding " << itL->toVarIdx() << "comp of " << pActVar->getVarNum() << endl;
+                 //   cout << "Adding  " << origVar  << " to the component search stack " << endl;
                 }
 			}
 		//END traverse binary clauses
@@ -602,9 +679,13 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 						{
 							lookUpVars[itL->toVarIdx()] = SEEN;
                             //cout << " Changing lookUpVars for " << itL->toVarIdx() << " to seen " << endl;
-                                int oVar = origTranslation[itL->toSignedInt()];
-                                if (activeY[itL->toVarIdx()]  || tseitinComp)  //Add to the component only if output variable
+                                int oVar = origTranslation[itL->toVarIdx()];
+                       //     cout << "In getComp - clauses.Processing " << itL->toVarIdx() << "origVar " << oVar << endl;
+                                //if (activeY[oVar] || tseitinY[oVar]  ||  tseitinComp)  //Add to the component only if output variable or only X vars remaining
+                                if ((activeY[oVar] || containsActiveY(oVar)) && !tseitinComp)   //Add to the component only if output variable or only X vars remaining
+                                //if (activeY[itL->toVarIdx()]  || tseitinComp)  //Add to the component only if output variable
 							        componentSearchStack.push_back(itL->toVarIdx());
+                        //    cout << "From clauses: Adding  " << oVar << " aka " << itL->toVarIdx() << " to the component search stack " << endl;
 						}
 					}
                 }
@@ -620,15 +701,17 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 	// BEGIN store variables in resComp
 	/////////////////////////////////////////////////
 
+   // cout << "Component Search Stack Size " << componentSearchStack.size() << endl;
 	decStack.lastComp().reserveSpace(componentSearchStack.size(), nClausesSeen);
-
+    //cout << "Adding var "  ;
 	for (vt = superComp.varsBegin(); *vt != varsSENTINEL; vt++)
 		if (lookUpVars[*vt] == SEEN) //we have to put a var into our component
 		{
 			decStack.lastComp().addVar(*vt);
 			lookUpVars[*vt] = IN_OTHER_COMP;
-         //   cout << "Adding var " << *vt << " to comp " << decStack.lastComp().id << endl;
+     //       cout << *vt << " "  ;
 		}
+    //cout << " to comp " << decStack.lastComp().id << endl;
 
 	//decStack.lastComp().addVar(varsSENTINEL); // Moved to above
 
@@ -637,23 +720,26 @@ bool synSolver::getComp(const VarIdT &theVar, const CComponentId &superComp,
 	/////////////////////////////////////////////////
 
 	for (itCl = superComp.clsBegin(); *itCl != clsSENTINEL; itCl++)
+    {
 		if (lookUpCls[*itCl] == SEEN)
 		{
 			decStack.lastComp().addCl(*itCl);
 			lookUpCls[*itCl] = IN_OTHER_COMP;
-          //  cout << "adding clause " << *itCl << " to comp " << decStack.lastComp().id << endl; 
-           // printClause(*itCl);
+            //cout << "adding clause " << *itCl << " to comp " << decStack.lastComp().id << endl; 
+            //printClause(*itCl);
 		}
+    }
 	//decStack.lastComp().addCl(clsSENTINEL); // Moved to above
 	
 	decStack.lastComp().addTrueClauseCount(nClausesSeen + nBinClsSeen);
    // cout << "No of clauses in comp " << decStack.lastComp().id << " is "  <<  nClausesSeen + nBinClsSeen << endl;
 
    // cout <<" Added new component to decStack " << endl;
-   if (nClausesSeen == 0)
-       cout << " No clauses added to the component. nClausesSeen == 0. " << endl;
+   if ((nClausesSeen + nBinClsSeen) == 0)
+       cout << " No clauses added to the component. nClausesSeen +nBinClsSeen = 0 " << endl;
 
 	componentSearchStack.clear();
+
 	return true;
 }
 
@@ -671,7 +757,9 @@ bool synSolver::findVSADSDecVar(LiteralIdT &theLit, const CComponentId & superCo
 
 	for (it = superComp.varsBegin(); *it != varsSENTINEL; it++)
     {
-        int oVar = origTranslation[getVar(*it).getLitIdT(true).toSignedInt()];
+       // int oVar = origTranslation[getVar(*it).getLitIdT(true).toSignedInt()];
+        
+        int oVar = origTranslation[*it];
         // cout << "Checking FVSADs score for " << *it << " aka " << oVar << endl;
          //if (!activeY[oVar])
           //  cout << " Var " << *it << " is not active Y " << endl;
@@ -723,14 +811,15 @@ bool synSolver::OnlyXandTseitin (const CComponentId & superComp)
 	    for (it = superComp.varsBegin(); *it != varsSENTINEL; it++)
         {
             numVar++;
-            int oVar = origTranslation[getVar(*it).getLitIdT(true).toSignedInt()];
+            //int oVar = origTranslation[getVar(*it).getLitIdT(true).toSignedInt()];
+            int oVar = origTranslation[*it];
 		    if (getVar(*it).isActive())
             {
                 if ( activeY[oVar] ) //|| tseitinVars[*it])
                     return false;
             }
          }
-         cout << " Component contains only  X and Tseitin Variables " << endl;
+      //   cout << " Component contains only  X and Tseitin Variables " << endl;
          return (numVar > 0);
         // return true;
 }
@@ -738,10 +827,10 @@ bool synSolver::OnlyXandTseitin (const CComponentId & superComp)
  /* Added by Shetal - to create directly from the preprocessed data 
     Modified createfromFile to create from pre-read clauses by readCnf */
 bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVars) // vector<int> &varsY)
-{
-	//unsigned int nVars= Xvar.size() + Yvar.size();
-    unsigned int nCls=clauses.size();
+{ 
 
+   // unsigned int nVars= Xvar.size() + Yvar.size();
+    unsigned int nCls=clauses.size(); 
 	vector<int> litVec;
 	vector<TriValue> seenV;
 	int clauseLen = 0;
@@ -783,6 +872,11 @@ bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVar
 
     for (int i = 0; i < clauses.size(); i++)
     {
+        if (clauses[i].size() == 0)
+        {
+         //       cout << "Clause " << i << "is empty " << endl;
+               continue;
+        }
 	    it = clauses[i].begin();
 
       //  cout << "Processing clause " << i << endl;
@@ -966,14 +1060,17 @@ bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVar
 	// Store the original translation
 	origTranslation.clear();
 	origTranslation.resize(varPosMap.size(), -1);
-	for (int i = 0; i < varPosMap.size(); i++)
+	for (int i = 1; i < varPosMap.size(); i++)
 	{
 		if (-1 != varPosMap[i])
+        {
+            assert (varPosMap[i] <= varPosMap.size());
 			origTranslation[varPosMap[i]] = i;
+        }
 
 	}
-	//for (int i = 0; i < varPosMap.size(); i++)
-     //   cout << "origTranslation " << i << " = " << origTranslation[i] << "varPosMap " << varPosMap[i] << endl;
+	for (int i = 1; i < varPosMap.size(); i++)
+        cout << "origTranslation " << i << " = " << origTranslation[i] << " varPosMap " << varPosMap[i] << endl;
 
 	//----- This is a good place to set up the var(Un)Translation
 	//--- Clear it out
@@ -995,23 +1092,33 @@ bool synSolver::createfromPrep( vector<vector<int> > &clauses, unsigned int nVar
 }
 
 //Taken from jatin and divya's code
-void synSolver::writeComp(ofstream& ofs) {
+void synSolver::writeComp(ofstream& ofs, string out) {
 		ofs<<".model Comp"<<endl;
 		ofs<<".inputs ";
 
 		map<string, string> inputsToDS;
 		
 		for(int i=1; i<=originalVarCount; i++) {
-            if (activeY[i] || tseitinY[i])  //Add to the component only if output variable
+            if (activeY[i])  //Add to the component only if output variable
             {
 				string posStr = "C_OUT_"+to_string(i);
-				string negStr = "C_OUT_NEG_"+to_string(i);
 
 				ofs<<posStr<<" ";
 				// ofs<<negStr<<" ";
+				string negStr = "C_OUT_NEG_"+to_string(i);
 				inputsToDS[getInputName(i)] = posStr;
 				inputsToDS[getInputName(i+originalVarCount)] = negStr;
 			}
+            else if (tseitinY[i])
+            {
+				string posStr = "C_OUT_T_"+to_string(i);
+				ofs<<posStr<<" ";
+				// ofs<<negStr<<" ";
+			//	string negStr = "C_OUT_T_NEG_"+to_string(i);
+				inputsToDS[getInputName(i)] = posStr;
+			//	inputsToDS[getInputName(i+originalVarCount)] = negStr;
+
+            }
 			else {
 				string st = "C_INP_"+to_string(i); 
 				ofs<<st<<" ";
@@ -1022,68 +1129,93 @@ void synSolver::writeComp(ofstream& ofs) {
 		ofs<<".outputs FHAT"<<endl;
 		for(int i=1; i<=originalVarCount; i++)
         {
-            if (activeY[i])  //Add to the component only if output variable
+            if (activeY[i])   //Add to the component only if output variable
             {
 				string posStr = "C_OUT_"+to_string(i);
 				string negStr = "C_OUT_NEG_"+to_string(i);
                 ofs << ".subckt not neg1 = " << posStr << " negOut = " <<  negStr << endl;
 
             }
+          /*  else if (tseitinY[i])   //Add to the component only if output variable
+            {
+				string posStr = "C_OUT_T_"+to_string(i);
+				string negStr = "C_OUT_T_NEG_"+to_string(i);
+                ofs << ".subckt not neg1 = " << posStr << " negOut = " <<  negStr << endl;
+
+            }
+            */
         }
 		ofs<<".subckt DS ";
 		for(auto q: inputsToDS) {
 			ofs<<q.first<<"="<<q.second<<" ";
 		}
 
-		DTNode* root;
-		if (1 == decStack.top().getDTNode()->numChildren())
-			root = decStack.top().getDTNode()->onlyChild();
-		else
-			root = decStack.top().getDTNode();
+	//	DTNode* root;
+	//	if (1 == decStack.top().getDTNode()->numChildren())
+	//		root = decStack.top().getDTNode()->onlyChild();
+	//	else
+	//		root = decStack.top().getDTNode();
 
-        if (onlyXClauses.size() > 0 ) 
-		    ofs<<"DS_OUT = FHAT"<<endl;
-        else
-		    ofs<<getIDName(root->getID())<<"=FHAT"<<endl;
+     //   if (onlyXClauses.size() > 0 ) 
+		    ofs<< out <<  " = FHAT " <<endl;
+      //  else
+		  //  ofs<<getIDName(root->getID())<<"=FHAT"<<endl;
 
 		ofs<<".end"<<endl;
 	}
 
+
+bool synSolver::containsActiveY (int var)
+{
+    return leaves[var].size() > 0;
+}
 //Gives a map of Y variables in the subtree rooted at the Tseitins
-void synSolver::processTseitins (vector < set<int>> & leaves)
+//void synSolver::processTseitins (vector < set<int>> & leaves, bool onlyY)
+void synSolver::processTseitins (bool onlyY)
 {
 	vector<set<int> > graph(originalVarCount+1);
 
 	// Create Graph
 	for(auto it: depCONST) {
 		int var = abs(it);
-		graph[var].insert(0);
+        set <int> s;
+        s.insert (0);
+		graph[var] = s; //.insert(0);
 	}
 	for(auto&it: depAND) {
 		int var = abs(it.first);
+        //cout << "DepAnd " << var << endl;
+        set <int> s;
 		for(auto&it2:it.second)
-			graph[var].insert(abs(it2));
+			//graph[var].insert(abs(it2));
+			s.insert(abs(it2));
+        graph[var] = s;
 	}
 	for(auto&it: depOR) {
 		int var = abs(it.first);
+        set <int> s;
 		for(auto&it2:it.second)
-			graph[var].insert(abs(it2));
+            s.insert(abs(it2));
+		graph[var] = s; //.insert(abs(it2));
 	}
 	for(auto&it: depXOR) {
 		int var = abs(it.first);
+        set <int> s;
 		for(auto&it2:it.second)
-			graph[var].insert(abs(it2));
+            s.insert(abs(it2));
+		graph[var] = s; //.insert(abs(it2));
 	}
 
     bool visited[originalVarCount +1] = {false};
 	for (int i = 1; i < originalVarCount + 1; ++i) {
         if (graph[i].size() > 0 )
-            DFS_collectLeaves(graph, i, leaves, visited);
+            DFS_collectLeaves(graph, i,  visited, onlyY);
 	}
 }
     
 //For now collecting all leaves... can restrict it to only activeY if needed.
-void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> >& leaves, bool visited[])
+//void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <set <int> >& leaves, bool visited[], bool onlyY)
+void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node,  bool visited[], bool onlyY)
 {
     //if (node == 0)
      //   return;
@@ -1091,30 +1223,40 @@ void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <se
         return;
     
     set<int> curr_leaves;
+    //cout << " In collect Leaves. Node " << node << endl;
     if (graph[node].size () <= 0) //This is a leaf?
     {
-        curr_leaves.insert(node);
-        leaves[node] = curr_leaves; //return itself
+        if (! onlyY || activeY[node] )
+        {
+            curr_leaves.insert(node);
+            leaves[node] = curr_leaves; //return itself
+        }
         visited[node] = true;
         return;
     }
     if (graph[node].size() == 1 && graph[node].find(0) != graph[node].end())
     {
-        curr_leaves.insert(node);
-        leaves[node] = curr_leaves; //return itself
+        if (! onlyY || activeY[node] )
+        {
+            curr_leaves.insert(node);
+            leaves[node] = curr_leaves; //return itself
+        //    cout << "Added " << node << " to leaves " << " of " << node << endl;
+        }
         visited[node] = true;
         return;
     }
 	for(auto &it:graph[node])
     {
         if (!visited[it]) 
-            DFS_collectLeaves(graph, it, leaves, visited);
+            DFS_collectLeaves(graph, it,  visited, onlyY);
 
         for (auto &l: leaves[it])
         {
-            //if (activeY[it]) //Adding X for printTseitinModules. 
-                curr_leaves.insert(l);
-        //    cout << "Added " << l << " to leaves " << " of " << node << endl;
+            if (! onlyY || activeY[l]) //Adding X for printTseitinModules. 
+            {
+                 curr_leaves.insert(l);
+         //        cout << "Added " << l << " to leaves " << " of " << node << endl;
+            }
         }
     } 
     leaves[node] = curr_leaves;
@@ -1125,17 +1267,33 @@ void synSolver::DFS_collectLeaves(vector<set<int> >& graph, int node, vector <se
 
 
 
-void synSolver::printSynNNF ()
+void synSolver::printSynNNF ( bool solved )
 {
-        map<int, string> visited;
-        set<int> negXT;
 
-        vector <set <int> > leaves(originalVarCount + 1);
-        processTseitins (leaves);
+       // vector <set <int> > leaves(originalVarCount + 1);
+        //processTseitins (leaves, false);
+        leaves.clear();
+        leaves.resize(originalVarCount + 1);
+        processTseitins (false);
         //DTNode *root = decStack.top().getDTNode();
 	    ofstream ofs (baseFileName+".syn.blif", ofstream::out);
 
-        writeComp(ofs);
+		DTNode* root;
+        if (! solved)
+        {
+            if (1 == decStack.top().getDTNode()->numChildren())
+                root = decStack.top().getDTNode()->onlyChild();
+            else
+                root = decStack.top().getDTNode();
+        }
+
+        string out; 
+        if (onlyXClauses.size() > 0 || solved ) 
+		    out = "DS_OUT";
+        else
+		    out = getIDName(root->getID());
+
+        writeComp(ofs, out);
 
 		ofs<<".model DS"<<endl;
 		ofs<<".inputs ";
@@ -1144,47 +1302,59 @@ void synSolver::printSynNNF ()
 		for (int i = 1; i <= originalVarCount; i++)
 		{
 			ofs<<getInputName(i)<<" ";
-			if (activeY[i] ) {
+			if (activeY[i] ) {  //  || tseitinY[i]) {
 				ofs<<getInputName(i+originalVarCount)<<" ";
 			}
 		}
         ofs << endl;
 
-		DTNode* root;
-		if (1 == decStack.top().getDTNode()->numChildren())
-			root = decStack.top().getDTNode()->onlyChild();
-		else
-			root = decStack.top().getDTNode();
-
+	   ofs<<".outputs "  << out << endl;
         //if (onlyXClauses.size() > 0 || depCONST.size() > 0 ) 
-        if (onlyXClauses.size() > 0 ) 
-		    ofs<<".outputs  DS_OUT"<<endl;
-        else
-		    ofs<<".outputs "<<getIDName(root->getID())<<endl;
+        //if (onlyXClauses.size() > 0 || solved ) 
+		 //   ofs<<".outputs DS_OUT" << endl;
+        //else
+		 //   ofs<<".outputs "<<getIDName(root->getID())<<endl;
     //Tseitins need to be handled separately
 
         ofs << ".subckt onM onOut = on" << endl;
         ofs << ".subckt offM offOut = off" << endl;
+        //print Neg for Tseitins and X
+		for (int i = 1; i <= originalVarCount; i++)
+		{
+			if (! activeY[i] ) {  //  || tseitinY[i]) {
+                ofs<<".subckt not neg1= "<< getInputName(i) <<" negOut= "<< getInputNegName(i) <<endl;
+			}
+		}
+
         set <int> assign;
 
-        for (auto &it :depCONST)
+        if (solved)
         {
-                assign.insert (it); //Constants are already assigned :)
+            printConstsAndTseitins (ofs, leaves);
         }
-        int tnum = 0;
-        map <string, string> tseitinVisited;
-        set<string> printT;
-        writeDSharp_rec( root, ofs, visited, negXT, assign,tnum, leaves, tseitinVisited, printT) ;
-        string currRoot = visited[root->getID()];
-
-        if (onlyXClauses.size() > 0)
+        else
         {
-            vector<string> children;
-            children.push_back(writeOnlyX (ofs, visited, negXT));
-            children.push_back(currRoot);
-            writeOPtoBLIF_rec(children, 0, ofs,  "DS_OUT"); //OR
-        }
+            for (auto &it :depCONST)
+            {
+                  assign.insert (it); //Constants are already assigned :)
+                        //print the solution here
+            }
+            int tnum = 0;
+            map<int, string> visited;
+            map <string, string> tseitinVisited;
+            set<int> negXT; //Not needed..can be removed
+            set<string> printT;
+            writeDSharp_rec( root, ofs, visited, negXT, assign,tnum, leaves, tseitinVisited, printT) ;
+            string currRoot = visited[root->getID()];
 
+            if (onlyXClauses.size() > 0)
+            {
+                vector<string> children;
+                children.push_back(writeOnlyX (ofs, visited, negXT));
+                children.push_back(currRoot);
+                writeOPtoBLIF_rec(children, 0, ofs,  "DS_OUT"); //OR
+            }
+        }
 		ofs<<".end"<<endl;
 
         printTseitinModules (ofs, leaves);
@@ -1222,7 +1392,7 @@ void synSolver::printTseitinModulesForOperators (ofstream & ofs,  vector<set <in
         {
                 int count = 0;
                 int child = abs (it2);
-                string child_name = to_string(child) + "_C_" +  to_string (count ++ );
+                string child_name = to_string(child) + "_C"; //  +  to_string (count ++ );
                 //cout << " Child " << child_name << " is a child " << endl;
                 int pol = it2 > 0;
 
@@ -1237,7 +1407,7 @@ void synSolver::printTseitinModulesForOperators (ofstream & ofs,  vector<set <in
                             {
                                 string c_name = name + "_INP_" + to_string(child);
                                 string child_neg_name = name + "_NEG_INP_" + to_string(child);
-                                ofs<<".subckt not neg1= "<< child_name <<" negOut= "<< child_neg_name <<endl;
+                                ofs<<".subckt not neg1= "<< c_name <<" negOut= "<< child_neg_name <<endl;
                                 children.push_back(child_neg_name);
                             }
                          }
@@ -1254,8 +1424,9 @@ void synSolver::printTseitinModulesForOperators (ofstream & ofs,  vector<set <in
 
                                if (! pol)
                                {
-                                        string child_neg_name = child  + "_NEG_C_" +  to_string (count ++ );
+                                        string child_neg_name =  "NEG_" +  child_name;
                                         ofs<<".subckt not neg1= "<< child_name <<" negOut= "<< child_neg_name <<endl;
+                                      //  cout << "child name " << child_name << "child_neg_name = " << child_neg_name << endl;
                                         children.push_back(child_neg_name);
                                }
                                else
@@ -1287,6 +1458,9 @@ void synSolver::printTseitinModules (ofstream & ofs,  vector<set <int> > & leave
 	}
 
 }
+//op = 0 : AND
+//op = 1 : OR
+//op = 2 : EXOR
 void synSolver::writeOPtoBLIF_rec(vector<string> &children, int op, ofstream& ofs,  string out)
 {
 		assert(children.size() > 0);
@@ -1354,11 +1528,11 @@ string synSolver::writeOnlyX(ofstream & ofs, map<int, string> & visited, set<int
             
             string name = (it > 0) ? getInputName(varNum) : "DS_INP_NEG_"+to_string(varNum);
             cl_children.push_back(name );
-            if ((it < 0) && (negXT.count (varNum) == 0) )
-            {
-			    ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
-                negXT.insert (varNum);
-            }
+            //if ((it < 0) && (negXT.count (varNum) == 0) )
+            //{
+			 //   ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
+              //  negXT.insert (varNum);
+            //}
 
         }
         out = "OX" + to_string(i);
@@ -1418,8 +1592,8 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
 				name = getInputName(varNum);
 				if(!polarity) {
 					name = "DS_INP_NEG_"+to_string(varNum);
-					ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
-                    negXT.insert(varNum);
+			//		ofs<<".subckt not neg1= "<< getInputName(varNum) <<" negOut= "<<name<<endl;
+             //       negXT.insert(varNum);
 				}
                 visited[node_id] = name;
                 return;
@@ -1455,11 +1629,11 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                         else
                         {
 				              name = getInputNegName(varNum);
-                              if (negXT.find (varNum) == negXT.end())
-                              {
-                                    ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" <<  name <<endl;
-                                    negXT.insert(varNum);
-                              }
+                            //  if (negXT.find (varNum) == negXT.end())
+                             // {
+                              //      ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" <<  name <<endl;
+                               //     negXT.insert(varNum);
+                             // }
                         }
                         visited[node_id] = name;
                      }
@@ -1491,8 +1665,9 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                              constr_name  += "_off";
                                          else
                                          {
-                                            cout << "Lit " << lit << " has no assignment " << endl;
-                                            assert (false);
+                                            cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
+                                            constr_name +="_on";
+                                            //assert (false);
                                          }
                                     }
                                  }
@@ -1530,7 +1705,11 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                                 if (assign.find (-lit) != assign.end())
                                                     ofs << "off " ;
                                                 else
-                                                    assert (false);
+                                                {
+                                                        cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
+                                                        constr_name +="_on";
+                                                    //assert (false);
+                                                }
                                             }
                                             else 
                                                      ofs << getInputName(lit); //X
@@ -1550,11 +1729,11 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                     c1.push_back (getInputName(varNum));
                                     c1.push_back (temp_var); 
                                     writeOPtoBLIF_rec(c1, 0, ofs, temp_var+"_sk"); //Check what this should be -- not sure SS
-                                    if (negXT.find (varNum) == negXT.end())
-                                    {
-                                        ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" << getInputNegName(varNum)<<endl;
-                                        negXT.insert(varNum);
-                                    }
+                                    //if (negXT.find (varNum) == negXT.end())
+                                    //{
+                                     //   ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" << getInputNegName(varNum)<<endl;
+                                      //  negXT.insert(varNum);
+                                    //}
                                     string neg_sk = "NEG_" +temp_var;
                                     ofs<<".subckt not neg1="<< temp_var <<" negOut=" << neg_sk <<endl;
                                     c2.push_back(getInputNegName(varNum));
@@ -1662,7 +1841,10 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                         if (assign.find(-lit) != assign.end())
                                          constr_name  += "_off";
                                         else 
-                                            assert (false);
+                                        {
+                                            cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << to_string(varNum) << endl;
+                                            constr_name +="_on";
+                                        }  //  assert (false);
                                     }
                                  }
                              }
@@ -1892,4 +2074,151 @@ bool synSolver:: checkStructProp (  )
 
     ofs.close();
     return val;
+}
+//Write clause clauseIndex in synNNF
+string synSolver::writeClause(ofstream &ofs, int clauseIndex)
+{
+    cout << "Writing Clause " << clauseIndex << endl;
+    assert (allClauses[clauseIndex].size() > 1); //Clauses of size 1 should be tseitinClauses.
+    string out = "CLAUSE_" + to_string(clauseIndex) + "_OUT";
+    vector<string> children; 
+    for (auto &it : allClauses[clauseIndex])
+    {
+        int varNum = abs(it);
+        bool pos = it > 0;
+        if (pos)
+                children.push_back(getInputName(varNum));
+        else
+        {
+            if (activeY[varNum])// || tseitinY[varNum])
+                children.push_back(getInputName(varNum+originalVarCount));
+            else //X ==can happen if X is semantically independent
+                children.push_back(getInputNegName(varNum));
+        }
+    }
+    
+    writeOPtoBLIF_rec(children, 1, ofs, out);
+
+    return out;
+
+}
+
+//Print function called when the file contains only unates and tseitins
+//Unates should be in depCONST, tseitins in depAND, depOR and depEXOR
+void synSolver::printConstsAndTseitins(ofstream &ofs, vector <set <int> >& leaves)
+{
+    //forallX
+  //  for (int i = 1; i <= originalVarCount; i++)
+//	{
+//			if (! ( activeY[i] || tseitinY[i] ))
+ //           ofs<<".subckt not neg1="<< getInputName(i) <<" negOut=" << getInputNegName(i)<<endl;
+//	}
+
+    vector<string> children; 
+	for(auto &it: depCONST)
+    {
+            int varNum = abs(it);
+            bool pol = it > 0 ? 1 : 0;
+            //cout << "Printing constant " << it << endl;
+            if (pol)
+            {
+                    children.push_back(getInputName(varNum));
+                 //   cout << "Pushing " << getInputName(varNum) << " in children " << endl;
+            }
+            else
+            {
+                if (activeY[varNum] )// || tseitinY[varNum])
+                {
+                    children.push_back(getInputName(varNum+originalVarCount));
+             //       cout << "Pushing " << getInputName(varNum+originalVarCount) << " in children " << endl;
+                }
+                else // X or tseitin
+                {
+                    children.push_back(getInputNegName(varNum));
+              //      cout << "Pushing " << getInputNegName(varNum+originalVarCount)  << endl;
+                }
+            }
+                
+    } 
+
+
+    writeOPtoBLIF_rec(children, 0, ofs,   "DS_CONST");
+    //Print the Tseitin Variables
+    children.clear();
+	for(auto &it: depAND)
+    {
+       string out =  printTseitinSkolemFunction (ofs, it.first, leaves);
+       children.push_back(out);
+    }
+	for(auto &it: depOR)
+    {
+       string out =  printTseitinSkolemFunction (ofs, it.first, leaves);
+       children.push_back(out);
+    }
+	for(auto &it: depXOR)
+    {
+       string out =  printTseitinSkolemFunction (ofs, it.first, leaves);
+       children.push_back(out);
+    }
+    children.push_back("DS_CONST");
+
+    for (int i = 0; i < tseitinClauses.size(); i++)
+    {
+        if (tseitinClauses[i])
+            continue;
+        else
+        {
+           cout << "In Printing: Clause " << i << "is not a tseitin clause " << endl;
+           children.push_back(writeClause(ofs, i));
+        }
+    }
+    writeOPtoBLIF_rec(children, 0, ofs, "DS_OUT");
+
+}
+//To be called when all activeY are constants.
+string synSolver::printTseitinSkolemFunction (ofstream &ofs, int varNum, vector <set <int> >& leaves)
+{
+        string tname = "T_" + to_string(varNum);
+        string constr_name = tname;
+
+        ofs << ".subckt  " << tname;
+        string temp_var = getInputName(varNum) + "_OUT"; 
+        //tseitin_visited[constr_name] = temp_var;
+
+        for (auto & lit: leaves[varNum])
+        {
+            ofs << " " << tname << "_INP_" << lit << "="  ;
+            if (depCONST.find(lit) != depCONST.end())   //Tseitin Constant?
+                     ofs << "on";
+           else if (depCONST.find(-lit) != depCONST.end())
+                        ofs <<  "off";
+
+            else
+            {
+                //assert lit is X
+                 ofs << getInputName(lit); //X
+            }
+
+        }
+        ofs << " " << tname + "_OUT = " << temp_var << endl;
+        //ofs << endl;
+         //For each tseitin:
+        //print y_i \and sk_i \or \neg_yi \and \neg sk_i
+        vector <string> c1;
+        vector <string> c2;
+        vector <string> c3;
+
+        c1.push_back (getInputName(varNum));
+        c1.push_back (temp_var); 
+        writeOPtoBLIF_rec(c1, 0, ofs, temp_var+"_sk"); //Check what this should be -- not sure SS
+        //ofs<<".subckt not neg1="<< getInputName(varNum) <<" negOut=" << getInputNegName(varNum)<<endl;
+        string neg_sk = "NEG_" +temp_var;
+        ofs<<".subckt not neg1="<< temp_var <<" negOut=" << neg_sk <<endl;
+        c2.push_back(getInputNegName(varNum));
+        c2.push_back(neg_sk);
+        writeOPtoBLIF_rec(c2, 0, ofs, "NEG_" + temp_var +"_sk"); //Check what this should be -- not sure SS
+        c3.push_back(temp_var +"_sk");
+        c3.push_back("NEG_" + temp_var +"_sk");
+        writeOPtoBLIF_rec(c3, 1, ofs, temp_var +"_skwhole"); //Check what this should be -- not sure SS
+        return temp_var+ "_skwhole";
 }

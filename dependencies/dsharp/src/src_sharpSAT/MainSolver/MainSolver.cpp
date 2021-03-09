@@ -161,7 +161,7 @@ void CMainSolver::solve(const char *lpstrFileName)
 	translateLiterals(getOrigTranslation());
 	
   //Added by Shetal
-    decStack.top().getDTNode()->print();
+   // decStack.top().getDTNode()->print();
 	if (CSolverConf::smoothNNF) {
 		// Smooth the d-DNNF (note: this may cause AND-AND parent-children)
 		set<int> literals;
@@ -1078,12 +1078,15 @@ bool CMainSolver::implicitBCP()
 	{
 		if (decStack.TOS_countImplLits() - impOfs > 0)
 		{
+            //cout << "Decstack. implits = " << decStack.TOS_countImplLits() << " impOfs " << impOfs << endl;
+
 			memset(viewedLits, false, sizeof(bool) * ((countAllVars() + 1) * 2
 					+ 1));
 			nextStep.clear();
 			for (it = decStack.TOS_ImpliedLits_begin() + impOfs; it
 					!= decStack.TOS_ImpliedLits_end(); it++)
 			{
+             //       cout << " In IBCP : lit :  " <<  it->toVarIdx() << endl;
 				step = var_InClsStep(!it->polarity());
 				for (ct = var_InClsStart(it->toVarIdx(), !it->polarity()); *ct
 						!= SENTINEL_CL; ct += step)

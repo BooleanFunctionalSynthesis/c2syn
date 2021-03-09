@@ -117,6 +117,7 @@ void parseOptions(int argc, char * argv[]) {
 		("m, monoSkolem", "Run MonoSkolem algorithm", cxxopts::value<bool>(options.monoSkolem))
 		("reverseOrder", "Use reversed variable orderings", cxxopts::value<bool>(options.reverseOrder))
 		("noRevSub", "Don't reverse substitute", cxxopts::value<bool>(options.noRevSub))
+		("skipCegar", "Skip CEGAR", cxxopts::value<bool>(options.skipCegar))
 		("verify", "Veify computed skolem functions", cxxopts::value<bool>(options.verify))
 		("noUnate", "Don't find and substitute unates", cxxopts::value<bool>(options.noUnate))
 		("noSyntacticUnate", "Don't use Syntactic unateness checks", cxxopts::value<bool>(options.noSyntacticUnate))
@@ -261,6 +262,7 @@ void parseOptions(int argc, char * argv[]) {
 
 	if (!optParser.count("out")) {
 		options.outFName = getFileName(options.benchmark) + "_norevsub.v";
+		//options.outFName = getFileName(options.benchmark) + "_result.v";
 	}
 
 	options.noUnate = options.noUnate || options.monoSkolem;
@@ -447,6 +449,10 @@ void populateVars(Abc_Ntk_t* FNtk, Nnf_Man& nnf, string varsFile,
 	vector<int>& varsYF, vector<int>& varsYS,
 	map<string,int>& name2IdF, map<int,string>& id2NameF) {
 
+    //cout << "VarsXS. size() " << varsXS.size() << endl;
+    //cout << "VarsYS. size() " << varsYS.size() << endl;
+    //cout << "VarsYF. size() " << varsYF.size() << endl;
+    //cout << "VarsXF. size() " << varsXF.size() << endl;
 	int i;
 	Abc_Obj_t* pPi;
 	string line;
@@ -459,6 +465,7 @@ void populateVars(Abc_Ntk_t* FNtk, Nnf_Man& nnf, string varsFile,
 		OUT( "Prim Inputs F:" );
 		Abc_NtkForEachCi( FNtk, pPi, i ) {
 			OUT( i << ": " << pPi->Id << ", " << Abc_ObjName(pPi) );
+		//	cout << i << ": " << pPi->Id << ", " << Abc_ObjName(pPi)  << " name2IdF " << name2IdF[Abc_ObjName(pPi)] << endl;
 		}
 	#endif
 	for(auto it:name2IdF)
@@ -466,13 +473,17 @@ void populateVars(Abc_Ntk_t* FNtk, Nnf_Man& nnf, string varsFile,
 
 	OUT( "Reading vars to elim..." );
 	auto name2IdFTemp = name2IdF;
+ //   cout << "Size of name2IdTemp " << name2IdFTemp.size() << " size of name2IdF " << name2IdF.size() << endl;
 	ifstream varsStream(varsFile);
 	if(!varsStream.is_open())
 		cout << "Var File " + varsFile + " does not exist!" << endl;
 	assert(varsStream.is_open());
 	while (getline(varsStream, line)) {
 		if(line != "") {
+            //cout << "Reading  " << line << endl;
 			auto it = name2IdFTemp.find(line);
+            if (it == name2IdFTemp.end())
+                cout << line << " not found  in name2IdFTemp " << endl;
 			assert(it != name2IdFTemp.end());
 			varsYF.push_back(it->second);
 			name2IdFTemp.erase(it);
@@ -502,6 +513,8 @@ void populateVars(Abc_Ntk_t* FNtk, Nnf_Man& nnf, string varsFile,
 
 	numX = varsXS.size();
 	numY = varsYS.size();
+    cout << "numX " << numX << endl;
+    cout << "numY " << numY << endl;
 
 	if(numY <= 0) {
 		cout << "Var File " + varsFile + " is empty!" << endl;
@@ -923,10 +936,17 @@ void initializeCompose(Aig_Man_t* SAig, vector<Aig_Obj_t* >& Fs,
 		cout << " Error = F is assigned Cons0 " << endl;
 	Fs[1] = Aig_ObjCreateCo(SAig, retVec[1]);	
 	int nonUIndex = 0;
+   // int numR0C = 0;
 	for(int i = 0; i < numY; i++) {
 		switch(unate[i]) {
 			case -1:
 				Aig_ObjCreateCo(SAig, Aig_Not(retVec[2 + nonUIndex]));
+                /*if (Aig_ObjIsConst1(Aig_Regular(retVec[2+nonUIndex])))
+                {
+                    cout << " Skolem function for non-unate var " << i << " is constant " << endl;
+                    numR0C ++;
+                }
+                */
 				nonUIndex ++;
 				break;
 			case 0:
@@ -938,13 +958,21 @@ void initializeCompose(Aig_Man_t* SAig, vector<Aig_Obj_t* >& Fs,
 		}
 		r0[i].push_back(Aig_ManCoNum(SAig) - 1);
 	}
-	cout << "Assigned r0's for all vars " << endl;
+	//cout << "Assigned r0's for all vars. Non-unate constant r0's = " << numR0C << endl;
+	cout << "Assigned r0's for all vars." << endl;
 	assert (nonUIndex == nonUnates);
 	nonUIndex = 0;
+    //int numR1C = 0;
 	for(int i = 0; i < numY; i++) {
 		switch(unate[i]) {
 			case -1:
 				Aig_ObjCreateCo(SAig, Aig_Not(retVec[2 + nonUnates + nonUIndex]));
+                /*if (Aig_ObjIsConst1(Aig_Regular(retVec[2+nonUIndex + nonUnates])))
+                {
+                    cout << " Skolem function for non-unate var " << i << " is constant " << endl;
+                    numR1C ++;
+                }
+                */
 				nonUIndex ++;
 				break;
 			case 0:
@@ -958,7 +986,8 @@ void initializeCompose(Aig_Man_t* SAig, vector<Aig_Obj_t* >& Fs,
 	}
 	funcVecVec.resize(0);
 	retVec.resize(0);
-	cout << "Assigned r1's for all vars " << endl;
+	//cout << "Assigned r1's for all vars. Non-unate constant r1's = " << numR1C << endl;
+	cout << "Assigned r1's for all vars.  "  << endl;
 }
 
 /** Function
@@ -2460,6 +2489,7 @@ void verifyResult(Aig_Man_t*&SAig, vector<vector<int> >& r0,
 
 	if(options.noRevSub) {
 		cout << "noRevSub, exiting" << endl;
+		saveSkolems(SAig, skolemAig, getFileName(options.benchmark) + "_norevsub.v");
 		return;
 	}
 
@@ -2600,7 +2630,8 @@ void verifyResult(Aig_Man_t*&SAig, vector<vector<int> >& r0,
 	cout<< "Reverse substitute time: " << reverse_sub_time << endl;
 
 	// save skolems to file
-	saveSkolems(SAig, skolemAig);
+	//saveSkolems(SAig, skolemAig);
+	saveSkolems(SAig, skolemAig, options.outFName);
 
 	// For experimental purposes
 	if(!options.verify)
@@ -3698,7 +3729,7 @@ int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate) {
 				//cout << "Status of sat solver " << status << endl;
 				if (status == l_False) {
 					unate[i] = 1;
-					cout << "Var y" << i << " (" << varsYF[i] << ") is positive unate (semantic)" << endl;
+				//	cout << "Var y" << i << " (" << varsYF[i] << ") is positive unate (semantic)" << endl;
 					// sat_solver_push(pSat, toLitCond(SCnf->pVarNums[varsYF[i]],0));
 					addVarToSolver(pSat, SCnf->pVarNums[varsYF[i]], 1);
 					addVarToSolver(pSat, SCnf_copy->pVarNums[varsYF[i]], 1);
@@ -3714,7 +3745,7 @@ int checkUnateSemAll(Aig_Man_t* FAig, vector<int>&unate) {
 				status = sat_solver_solve(pSat, LA, LA+2+numY, (ABC_INT64_T)0, (ABC_INT64_T)0, (ABC_INT64_T)0, (ABC_INT64_T)0);
 				//cout << "Status of sat solver " << status << endl;
 				if (status == l_False) {
-					cout << "Var y" << i << " (" << varsYF[i] << ") is negative unate (semantic)" << endl;
+				//	cout << "Var y" << i << " (" << varsYF[i] << ") is negative unate (semantic)" << endl;
 					unate[i] = 0;
 					// sat_solver_push(pSat, toLitCond(SCnf->pVarNums[varsYF[i]],1));
 					addVarToSolver(pSat, SCnf->pVarNums[varsYF[i]], 0);
@@ -3888,9 +3919,11 @@ void populateVars(Abc_Ntk_t* FNtk, string varsFile, vector<string>& varOrder,
 	Abc_Obj_t* pPi;
 	string line;
 
+    cout << "reading vars in populateVars " << endl;
 	Abc_NtkForEachCi( FNtk, pPi, i ) {
 		string variable_name = Abc_ObjName(pPi);
 		name2IdF[variable_name] = pPi->Id;
+        cout << variable_name << " : " << pPi->Id << endl;
 	}
 
 	for(auto it:name2IdF)
@@ -3918,7 +3951,11 @@ void populateVars(Abc_Ntk_t* FNtk, string varsFile, vector<string>& varOrder,
 
 	numX = varsXF.size();
 	numY = varsYF.size();
+
 	numOrigInputs = numX + numY;
+    cout << "numX " << numX << endl;
+    cout << "numY " << numY << endl;
+    cout<< "numOrigInputs " << numOrigInputs << endl;
 
 	if(numY <= 0) {
 		cout << "Var File " + varsFile + " is empty!. No variables to eliminate." << endl;
@@ -3972,7 +4009,7 @@ void substituteUnates(Aig_Man_t* &pMan, vector<int>&unate) {
 }
 
 // Assumes skolemAig[...] correspond to varsYS[...]
-void saveSkolems(Aig_Man_t* SAig, vector<int>& skolemAig) {
+void saveSkolems(Aig_Man_t* SAig, vector<int>& skolemAig, string outfname) {
 	assert(skolemAig.size() == numY);
 
 	// // Checking Supports for all except X
@@ -4039,12 +4076,12 @@ void saveSkolems(Aig_Man_t* SAig, vector<int>& skolemAig) {
 
 	// Write to verilog
 	Abc_FrameSetCurrentNetwork(pAbc, outNtk);
-	string command = "write "+options.outFName;
+	string command = "write "+outfname;
 	if (Cmd_CommandExecute(pAbc, (char*)command.c_str())) {
 		cerr << "Could not write result to verilog file" << endl;
 	}
 	else {
-		cout << "Saved skolems to " << options.outFName << endl;
+		cout << "Saved skolems to " << outfname << endl;
 	}
 
 }

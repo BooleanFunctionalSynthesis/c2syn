@@ -12,7 +12,7 @@ RCNF  	= readCnf
 ORDR  	= genVarOrder
 VRFY  	= verify
 RSUB    = revsub
-LIB_BFSS = libbfss.a
+#LIB_BFSS = libbfss.a
 LIB_COMBFSS = libcombfss.a
 
 #PREP    = prep
@@ -123,6 +123,10 @@ $(ALL_OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 #$(LIB_BFSS): $(ALL_OBJECTS)
 #	ar rcs $(LIB_BFSS) $(ALL_OBJECTS)
 #	ranlib $(LIB_BFSS) 
+
+$(LIB_BFSS): obj/helper.o obj/nnf.o obj/readCnf.o obj/bfss.o obj/revsub.o obj/verify.o
+	ar rcs $@ $^ 
+	ranlib $@ 
     
 $(LIB_COMBFSS): obj/helper.o obj/nnf.o obj/readCnf.o
 	ar rcs $@ $^ 

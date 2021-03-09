@@ -18,6 +18,7 @@ vector<int> varsY;
 //vector<int> unates;
 int numVars, numClauses;
 int numA, numE;
+int origNumVars;
 vector<int> tseitinVars;
 vector<int> constVars;
 vector<int> opVars; //tseitinVars + constVars + opVars = numE;
@@ -44,6 +45,7 @@ int preprocess( set<int> &unateVarNums );
 void print(vector<int> & v);
 void print(set<int> & v);
 void findDependencies();
+void cleanDependencies();
 bool findDepAND(int y);
 bool findDepOR(int y);
 bool findDepXOR(int y);
@@ -109,14 +111,34 @@ void readCnf0 ( char * qdFileName)
 int preprocess( set<int>& unateVarNums )
 {
 
-        //for (set<int>::iterator it  = unateVarNums.begin(); it != unateVarNums.end(); it++)
-         //   cout << "Unate " << *it << " " ;
-        //cout << endl;
-	// Propagate unary clauses (and more)
-    cout << " # clauses" << allClauses.size() << endl;
+        bool firstIter = true;
+        cout << " # clauses" << allClauses.size() << endl;
+    //Re-iterating
+        std::fill (tseitinClauses.begin(), tseitinClauses.end(), 0);
+        std::fill (depFound.begin(), depFound.end(), 0);
+            //recompute dependencies if unates are found 
+    //    tseitinClauses.clear();
+        depAND.clear();
+      //  depFound.clear();
+        depOR.clear();
+        depXOR.clear();
 
+
+        cout << "preprocess: sizeofvarsY " << varsY.size() << endl;
+        
+        if (unateVarNums.size() > 0)
+        {
+            firstIter = false;
+            for (auto & it : depCONST)
+            {
+	            litToPropagate.push(it);
+                depFound[abs(it)] = true;
+            }
+
+        }
         findLitToProp(unateVarNums);
         cout << "Finished findLitToProp" << endl;
+
         while(!litToPropagate.empty()) {
             int toProp = litToPropagate.front();
             litToPropagate.pop();
@@ -128,18 +150,24 @@ int preprocess( set<int>& unateVarNums )
         findDependencies();
         cout << "Finished findDependencies" << endl;
 
+        if (! firstIter)
+        {
+            cleanDependencies(); // an earlier tseitin var be become a const because of unate propagation. Remove such tseitin dependencies
+            cout << "Cleaned dependencies " << endl;
+        }
+
         assert(!checkForCycles());
         cout << "Finished checkForCycles" << endl;
 
-        reduceDependencySizes();
-        cout << "Finished reduceDependencySizes" << endl;
+        //reduceDependencySizes();
+        //cout << "Finished reduceDependencySizes" << endl;
 
         int numNonTseitin = 0;
         int numTseitin = 0;
         for(int i = 0; i < allClauses.size(); i++) {
             if(!tseitinClauses[i]) {
                 numNonTseitin++;
-                 cout<<i<<": \t"; print(allClauses[i]);
+                // cout<<i<<": \t"; print(allClauses[i]);
             }
             else
                 if (prevTseitinClauses[i] != tseitinClauses[i]) //New Tseitin's discovered
@@ -230,6 +258,7 @@ void readQdimacsFile(char * qdFileName) {
 	}
 	cout << "varsY.size(): " << varsY.size() << endl;
 	assert (numVars > varsY.size());
+    origNumVars = numVars;
 
 	// Update numVars = maxVar
 	int maxVar = 0;
@@ -281,6 +310,8 @@ void readQdimacsFile(char * qdFileName) {
 			tseitinClauses.push_back(false);
 			prevTseitinClauses.push_back(false);
 		}
+        else
+            cout << "Clause " << i << " is empty " << endl;
 
 		if(tempClause.size() == 2) { // populate ___Implies
 			processBinaryClause(allClauses.size()-1);
@@ -302,8 +333,28 @@ void readQdimacsFile(char * qdFileName) {
     //}
 }
 
+void cleanDependencies()
+{
+	for(auto&it: depAND) {
+		int var = abs(it.first); 
+        if (depCONST.find(var) != depCONST.end() || depCONST.find(-var) != depCONST.end ()) //The var is a const
+            depAND.erase(var);
+    }
+	for(auto&it: depOR) {
+		int var = abs(it.first); 
+        if (depCONST.find(var) != depCONST.end() || depCONST.find(-var) != depCONST.end ()) //The var is a const
+            depOR.erase(var);
+    }
+	for(auto&it: depXOR) {
+		int var = abs(it.first); 
+        if (depCONST.find(var) != depCONST.end() || depCONST.find(-var) != depCONST.end ()) //The var is a const
+            depXOR.erase(var);
+    }
+}
+
 void findDependencies() {
 	// Find AND dependencies
+    cout << "findDependencies: Size of varsY " << varsY.size() << endl;
 	for(auto y:boost::adaptors::reverse(varsY)) {
 		depFound[y] = depFound[y] or findDepAND(y) or findDepOR(y);
 	}
@@ -314,15 +365,17 @@ void findDependencies() {
 
 bool findDepAND(int y) {
 	// Check for y = AND(...)
+    //cout << "y : " << y  << endl;
 	for(auto clauseNum: existsAsPos[y]) { // Checking all possible clauses
 
+       // cout << " clauseNum " << clauseNum << endl;
 		if(tseitinClauses[clauseNum] == true)
 			continue;
 
 		bool gotcha = true;
 		for(auto v2: allClauses[clauseNum]) {
-			//if(tseitinClauses[clauseNum] == true) //Required - SS?
-			//	continue;
+			if(tseitinClauses[clauseNum] == true) //Required - SS?
+				continue;
 			if(v2!=y and posImplies[y].find(-v2)==posImplies[y].end()) {
 				gotcha = false;
 				break;
@@ -332,22 +385,22 @@ bool findDepAND(int y) {
 			// Print it
 			string dep = "AND(";
 			for(auto v2: allClauses[clauseNum]) {
-			//	if(tseitinClauses[clauseNum] == true) //Required - SS?
-		//			continue;
+				if(tseitinClauses[clauseNum] == true) //Required - SS?
+					continue;
 				if(v2!=y) {
 					dep = dep + to_string(-v2) + ", ";
 				}
 			}
 			dep = dep.substr(0,dep.length()-2) + ")";
-			cout << "DEP" << y << " = " << dep << endl;
+		//	cout << "DEP" << y << " = " << dep << endl;
 
 			// Found Dependency
 			// assert(depAND.find(y) == depAND.end());
 			depAND[y] = vector<int>();
             depCl[y] = vector<int>();
 			for(auto v2: allClauses[clauseNum]) {
-				//if(tseitinClauses[clauseNum] == true)
-				//	continue;
+				if(tseitinClauses[clauseNum] == true)
+					continue;
 				if(v2!=y) {
 					depAND[y].push_back(-v2);
 					tseitinClauses[posImplies[y][-v2]] = true; // tseitinClauses=true
@@ -389,7 +442,7 @@ bool findDepOR(int y) {
 				}
 			}
 			dep = dep.substr(0,dep.length()-2) + ")";
-			cout << "DEP" << y << " = " << dep << endl;
+	//		cout << "DEP" << y << " = " << dep << endl;
 
 			// Found Dependency
 			// assert(depOR.find(y) == depOR.end());
@@ -461,7 +514,7 @@ bool findDepXOR(int y) {
 				if(clause1foundAt != -1 and clause2foundAt != -1) {
 					// Print it
 					string dep = "XOR(" + to_string(otherVars[0]) + ", " + to_string(-otherVars[1]) + ")";
-					cout << "DEP" << y << " = " << dep << endl;
+				//	cout << "DEP" << y << " = " << dep << endl;
 
 					// Found Dependency
 					vector<int> res(2);
@@ -536,7 +589,6 @@ void findLitToProp(set<int> unateVarNums) {
 			}
 		}
 		else if(clause.size() == 1 ) {
-            //cout << "Setting " << clause[0] << " to const " << endl;
 			setConst(clause[0]);
 			if (std::find (varsX.begin(), varsX.end(), abs (clause [0])) != varsX.end())
 				cout << " A universally quantified variable is unary " << clause[0] << endl;
@@ -565,21 +617,15 @@ void findLitToProp(set<int> unateVarNums) {
             cout << "Setting unate " << var << " as const " << endl;
             setConst(var);
     }
-    //set<int>::iterator it;
-
-    //for ( it =  unaLit.begin(); it != unaLit.end(); ++it )
-     //   litToPropagate.push (*it);
-
-    //unaLit.clear();
 }
 
 void propagateLiteral(int lit) {
 	int var = abs(lit);
-	cout << " Propogating literal " << lit << endl;
+//	cout << " Propogating literal " << lit << endl;
 	bool pos = lit>0;
 	for(auto clauseNum:existsAsPos[var]) {
-	//	if(tseitinClauses[clauseNum]) //Commented this out as propagation in tseitin clauses was not happening -SS
-	//	continue;
+		if(tseitinClauses[clauseNum]) //Should this be commented out?
+            	continue;
 		if(pos) {
 			tseitinClauses[clauseNum] = true;	// tseitinClauses=true
 		}
@@ -602,8 +648,8 @@ void propagateLiteral(int lit) {
 	}
 
 	for(auto clauseNum:existsAsNeg[var]) {
-	//	if(tseitinClauses[clauseNum])
-	//		continue;
+		if(tseitinClauses[clauseNum])
+			continue;
 		if(!pos) {
 			tseitinClauses[clauseNum] = true;	// Unary tseitinClauses=true
 		}
@@ -882,7 +928,6 @@ static inline void addToImpliesMap(map<int,int>&m, int lit, int clauseNum) {
 static inline void setConst(int lit) {
     if (depCONST.find (lit) == depCONST.end())
     {
-	    cout << "DEPConst " << lit << endl;
 	    depFound[abs(lit)] = true;
 	    depCONST.insert(lit);
 	    litToPropagate.push(lit);
@@ -999,13 +1044,18 @@ bool DFS_checkForCycles(vector<set<int> >& graph, int node, vector<int>& DFS_sta
 }
 
 void reduceDependencySizes() {
+    
+    int end = MAX_DEP_SIZE;
 	for(auto&it: depAND) {
-		while(it.second.size() > MAX_DEP_SIZE) {
+        if (it.second.size() > MAX_DEP_SIZE ) //Added by Shetal to remove additional variables being generated
+            end = it.second.size(); 
+		while(end > MAX_DEP_SIZE) {
 			int start = 0;
 			int end = MAX_DEP_SIZE;
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
+                origNumVars++;
 				varsY.push_back(numVars);
 				assert(depFound.size() == numVars);
 				depFound.push_back(true);
@@ -1026,6 +1076,7 @@ void reduceDependencySizes() {
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
+                origNumVars++;
 				varsY.push_back(numVars);
 				assert(depFound.size() == numVars);
 				depFound.push_back(true);
@@ -1046,6 +1097,7 @@ void reduceDependencySizes() {
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
+                origNumVars++;
 				varsY.push_back(numVars);
 				assert(depFound.size() == numVars);
 				depFound.push_back(true);

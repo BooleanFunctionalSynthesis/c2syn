@@ -51,6 +51,7 @@ namespace ABC_NAMESPACE {
 	extern "C" {
 	Aig_Man_t * Abc_NtkToDar(Abc_Ntk_t * pNtk, int fExors, int fRegisters);
 	Abc_Ntk_t * Abc_NtkFromAigPhase(Aig_Man_t * pMan);
+    void Abc_Stop();
 	}
 }
 
@@ -117,6 +118,7 @@ struct optionStruct {
 	bool 	monoSkolem;
 	bool 	reverseOrder;
 	bool 	noRevSub;
+	bool 	skipCegar;
 	bool 	verify;
 	bool 	noUnate;
 	bool 	noSyntacticUnate;
@@ -251,7 +253,8 @@ void 			populateVars(Abc_Ntk_t* FNtk, string varsFile, vector<string>& varOrder,
 					vector<int>& varsXF, vector<int>& varsYF,
 					map<string,int>& name2IdF, map<int,string>& id2NameF);
 void 			substituteUnates(Aig_Man_t* &pMan, vector<int>&unate);
-void 			saveSkolems(Aig_Man_t* SAig, vector<int>& r_Aigs);
+//void 			saveSkolems(Aig_Man_t* SAig, vector<int>& r_Aigs);
+void 			saveSkolems(Aig_Man_t* SAig, vector<int>& r_Aigs, string outfname);
 void 			printAig(Aig_Man_t* pMan);
 int 			Aig_DagSizeWithConst(Aig_Obj_t * pObj);
 void			printBDDNode(DdManager* ddMan, DdNode* obj);

@@ -2,10 +2,11 @@
 
 #BUILD=RELEASE/DEBUG
 # Architecture required by ABC; GMP required by Dsharp; No Unigen required by BFSS
-CPP_FLAGS += -DLIN64 -DGMP_BIGNUM -DNO_UNIGEN
+CPP_FLAGS += -DLIN64 -DGMP_BIGNUM -DNO_UNIGEN  # -fsanitize=address -fsanitize=leak
 BUILD=DEBUG
 
 C2Syn    = c2syn
+Verify   = verify
 
 ABC_PATH = ./dependencies/abc
 DSHARP_PATH = ./dependencies/dsharp
@@ -23,6 +24,7 @@ OBJDIR   = obj
 BINDIR   = bin
 
 TARGET_C2Syn  = $(BINDIR)/$(C2Syn)
+TARGET_Verify  = $(BINDIR)/$(Verify)
 
 ABC_INCLUDES = -I $(ABC_PATH) -I $(ABC_SRCDIR)
 BFSS_INCLUDES = -I $(BFSS_SRCDIR)
@@ -35,10 +37,11 @@ DIR_INCLUDES = -I. $(ABC_INCLUDES) $(BFSS_INCLUDES) $(DSHARP_INCLUDES) #$(LIB_DI
 LIB_ABC    = -Wl,-Bstatic  -labc
 LIB_DSHARP = -Wl,-Bstatic  -ldsharp
 LIB_BFSS   = -Wl,-Bstatic -lcombfss
-LIB_COMMON = -Wl,-Bdynamic -lm -ldl -lreadline -ltermcap -lpthread -fopenmp -lrt -Wl,-Bdynamic -lboost_program_options -Wl,-Bdynamic -lz
+#LIB_BFSS   = -Wl,-Bstatic -lbfss
+LIB_COMMON = -Wl,-Bdynamic -lm -ldl -lreadline -ltermcap -lpthread -fopenmp -lrt -Wl,-Bdynamic -lboost_program_options -Wl,-Bdynamic -lz 
 
 CPP_FLAGS += -std=c++11 
-LFLAGS    = $(DIR_INCLUDES) -L $(ABC_PATH) $(LIB_ABC) -L$(DSHARP_PATH) $(LIB_DSHARP) -L/usr/lib -lgmpxx -lgmp -L $(BFSS_PATH) $(LIB_BFSS) $(LIB_COMMON)
+LFLAGS    = $(DIR_INCLUDES) -L $(ABC_PATH) $(LIB_ABC) -L$(DSHARP_PATH) $(LIB_DSHARP) -L/usr/lib -lgmpxx -lgmp -L $(BFSS_PATH) $(LIB_BFSS) $(LIB_COMMON) 
 
 ifeq ($(BUILD),DEBUG)
 CPP_FLAGS += -O0 -g
@@ -53,12 +56,16 @@ BFSS_SOURCES  = $(BFSS_SRCDIR)/nnf.cpp $(BFSS_SRCDIR)/helper.cpp $(BFSS_SRCDIR)/
 BFSS_OBJECTS  = $(BFSS_PATH)/obj
 DSHARP_SOURCES = $(DSHARP_DIR)/src_sharpSAT/MainSolver $(DSHARP_DIR)/src/MainSolver.cpp_sharpSAT/MainSolver/InstanceGraph/InstanceGraph.cpp
 DSHARP_OBJECTS = $(DSHARP_DIR)
-C2Syn_SOURCES  = $(SRCDIR)/preprocess.cpp $(SRCDIR)/synNNF.cpp
+C2Syn_SOURCES  = $(SRCDIR)/preprocess.cpp $(SRCDIR)/synNNF.cpp 
 C2Syn_OBJECTS  = $(C2Syn_SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+Verify_SOURCES = $(SRCDIR)/verify.cpp
+Verify_OBJECTS  = $(Verify_SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+
 
 .PHONY: all clean remove c2syn directories
-all: c2syn 
+all: c2syn  verify
 c2syn: directories $(TARGET_C2Syn)
+verify: $(TARGET_Verify)
 
 directories:
 	@mkdir -p $(OBJDIR)
@@ -67,6 +74,10 @@ directories:
 $(TARGET_C2Syn): $(C2Syn_OBJECTS) 
 	$(CXX) $(CPP_FLAGS) -o $@ $^ $(LFLAGS)
 	@echo "Built Target! - c2syn"
+
+$(TARGET_Verify): $(Verify_OBJECTS) 
+	$(CXX) $(CPP_FLAGS) -o $@ $^ $(LFLAGS)
+	@echo "Built Target! - verify"
 
 
 #$(C2Syn_OBJECTS): $(C2Syn_SOURCES)
@@ -79,10 +90,14 @@ $(C2Syn_OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(CXX) $(CPP_FLAGS) -c $^ -o $@  $(LFLAGS)
 	@echo "Compiled "$<" successfully!"
 
+$(Verify_OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
+	$(CXX) $(CPP_FLAGS) -c $^ -o $@  $(LFLAGS)
+#@echo "Compiled "$<" successfully!"
+
 clean:
-	@$(RM) $(C2Syn_OBJECTS)
+	@$(RM) $(C2Syn_OBJECTS) $(Verify_OBJECTS)
 	@echo "Cleanup complete!"
 
 remove: clean
-	@$(RM) $(TARGET_C2Syn) 
+	@$(RM) $(TARGET_C2Syn)  $(TARGET_Verify)
 	@echo "Executable removed!"

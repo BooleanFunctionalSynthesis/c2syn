@@ -16,7 +16,7 @@
 using namespace std;
 
 #define VERILOG_HEADER "// Generated using findDep.cpp \n"
-#define MAX_DEP_SIZE 10
+#define MAX_DEP_SIZE 1000
 
 
 extern vector<vector<int> > allClauses;
@@ -26,11 +26,13 @@ extern vector<int> varsX;
 extern vector<int> varsY;
 extern vector<int> tseitinVars;
 extern vector<int> unates;
+extern int numClauses;
 
 extern int numVars, numClauses;
 extern int numA, numE;
 extern map<int, vector<int> > depAND;
 extern map<int, vector<int> > depOR;
 extern map<int, vector<int> > depXOR;
+extern int origNumVars;
 
 #endif
