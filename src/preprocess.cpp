@@ -71,8 +71,6 @@ chrono_steady_time helper_time_measure_start = TIME_NOW;
 chrono_steady_time main_time_start = TIME_NOW;
 map<string, int> name2IdF;
 map<int, string> id2NameF;
-    
-
 map <int, Aig_Obj_t* > qd2AigMap; //Maps a var in qdimacs to the corresponding Object in AIG.
 map <int,  Aig_Obj_t*> funcT;
 
@@ -120,7 +118,6 @@ int main(int argc, char * argv[]) {
     readQdimacsFile(qdFileName); 
     set<int> unateVarNums;
 
-    cout << "NumX = " << varsX.size() << " numY = " << varsY.size() << endl;
     preprocess (unateVarNums); //Do unate check even if no tseitin's found
     writeOutput (qdFileName); //Do not write the preprocessed qdimacs file.
     
@@ -131,10 +128,10 @@ int main(int argc, char * argv[]) {
     Aig_Man_t* FAig = NULL;
     while (moreUnates)
     {
-        cout << " varsX " << endl;
-        print (varsX);
-        cout << " varsY " << endl;
-        print (origVarsY);
+      //  cout << " varsX " << endl;
+       // print (varsX);
+        //cout << " varsY " << endl;
+       // print (origVarsY);
 
         FNtk = getNtk(aigFileName);
 
@@ -239,6 +236,8 @@ int main(int argc, char * argv[]) {
              break;
         }
     }
+
+    cout << "In Preprocess.cpp : NumX = " << varsX.size() << " numY = " << varsY.size() << endl;
     assert (FAig != NULL); 
  
     //printAig (FAig);
@@ -256,10 +255,55 @@ int main(int argc, char * argv[]) {
         status = checkSemInd (FAig, indX, indY);
 
     if (status == 0)
+    {
         cout << " F syntactically/semantically independent of X " << endl;
+        //check the algorithm what to return. 
+        return 0;
+    }
     else if (status == 1)
+    {
         cout << " F syntactically/semantically independent of Y " << endl;
-        
+        //check the algorithm what to return 
+        return 0;
+    }
+
+    //Subsititute Semantic Independence
+	vector<int> varIdVec;
+	vector<Aig_Obj_t*> funcVec;
+
+    for (int i = 0; i < numX ; i++)
+    {
+        if (indX[i] == 1)
+        {
+			varIdVec.push_back(varsXF[i]);
+			funcVec.push_back(Aig_ManConst1(FAig));
+            cout <<" Setting " << varsXF[i] << " to 1 " << endl;
+            //Set XF[i] to 1/0
+        }
+
+    }
+
+	for (int i = 0; i < numY; ++i) {
+		if(indY[i] == 1) {
+			varIdVec.push_back(varsYF[i]);
+			funcVec.push_back(Aig_ManConst1(FAig));
+            cout <<" Setting " << varsYF[i] << " to 1 " << endl;
+		}
+	}
+	Aig_Obj_t* pAigObj = Aig_SubstituteVec(FAig, Aig_ManCo(FAig,0), varIdVec, funcVec);
+	
+//	cout << "Support of pAigObj " << Aig_SupportSize(pMan, Aig_Regular(pAigObj));
+
+	Aig_ObjPatchFanin0(FAig, Aig_ManCo(FAig,0), pAigObj);
+	Aig_ManCleanup(FAig);
+	Aig_Man_t* tempAig = FAig;
+	cout << " Duplicating AIG " << endl;
+
+	FAig = Aig_ManDupSimple(FAig);
+    //printAig (pMan);
+	Aig_ManStop(tempAig);
+    //printAig (FAig);
+
     varsXF.clear();
     varsYF.clear();
     name2IdF.clear();
@@ -270,13 +314,13 @@ int main(int argc, char * argv[]) {
     { 
         Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
         cout << " Calling the synNNF Solver " << endl;
-        cout << " varsX " << endl;
-        print (varsX);
+        //cout << " varsX " << endl;
+        //print (varsX);
         cout << " varsY " << endl;
-        print (origVarsY);
+        print (varsY);
     //Add Unates/Unit Clauses; May lead to some duplication.
         assert (allClauses.size() <= numClauses);
-        s.CreateSynNNF(allClauses, tseitinClauses, varsX, origVarsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, false);
+        s.CreateSynNNF(allClauses, tseitinClauses, varsX, varsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, false);
     }
     else
     {
@@ -623,8 +667,8 @@ int checkSemInd (Aig_Man_t* FAig, vector <int>& indX, vector<int>& indY)
 	sat_solver_delete(pSat);
 	Cnf_DataFree(SCnf);
 	Cnf_DataFree(SCnf_copy);
-    indX.resize(0);
-    indY.resize(0);
+    //indX.resize(0);
+    //indY.resize(0);
 
 	return retVal; 
 

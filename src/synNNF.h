@@ -27,9 +27,9 @@ class synSolver: public CMainSolver
     vector <set <int> > leaves; //Stores the leaves that a Tseitin Var depends on -- initially it stores only Y vars; while printing it stores both X and Y
 
     vector <vector<int> > onlyXClauses; // They do not take part in the decomposition to begin with. Need to be added later on.
-    set <int> activeYVars;
+//    set <int> activeYVars;
     string baseFileName;
-    int extraVar; //Sometimes readCnf introduces extraVars
+    int numVars; //Sometimes readCnf introduces extraVars - so numVars > originalVarCount
 //    int tseitinVars;
 
 public:

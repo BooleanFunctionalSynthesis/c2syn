@@ -3919,11 +3919,11 @@ void populateVars(Abc_Ntk_t* FNtk, string varsFile, vector<string>& varOrder,
 	Abc_Obj_t* pPi;
 	string line;
 
-    cout << "reading vars in populateVars " << endl;
+   // cout << "reading vars in populateVars " << endl;
 	Abc_NtkForEachCi( FNtk, pPi, i ) {
 		string variable_name = Abc_ObjName(pPi);
 		name2IdF[variable_name] = pPi->Id;
-        cout << variable_name << " : " << pPi->Id << endl;
+    //    cout << variable_name << " : " << pPi->Id << endl;
 	}
 
 	for(auto it:name2IdF)

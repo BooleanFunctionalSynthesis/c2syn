@@ -124,11 +124,15 @@ int preprocess( set<int>& unateVarNums )
         depXOR.clear();
 
 
-        cout << "preprocess: sizeofvarsY " << varsY.size() << endl;
         
         if (unateVarNums.size() > 0)
         {
             firstIter = false;
+            if (varsY.size() > numE)
+                varsY.resize(numE);     //In case extra vars have been generated
+
+            numVars = origNumVars;
+            depFound.resize(numVars+1, false);
             for (auto & it : depCONST)
             {
 	            litToPropagate.push(it);
@@ -136,6 +140,7 @@ int preprocess( set<int>& unateVarNums )
             }
 
         }
+        cout << "preprocess: sizeofvarsY " << varsY.size() << endl;
         findLitToProp(unateVarNums);
         cout << "Finished findLitToProp" << endl;
 
@@ -159,8 +164,8 @@ int preprocess( set<int>& unateVarNums )
         assert(!checkForCycles());
         cout << "Finished checkForCycles" << endl;
 
-        //reduceDependencySizes();
-        //cout << "Finished reduceDependencySizes" << endl;
+        reduceDependencySizes();
+        cout << "Finished reduceDependencySizes" << endl;
 
         int numNonTseitin = 0;
         int numTseitin = 0;
@@ -191,6 +196,7 @@ int preprocess( set<int>& unateVarNums )
            }
         }
        // cout << " Number of Tseitins  in  iteration " << iter << " = " << numTseitin << endl;
+       cout << "num of vars Y " << varsY.size() << endl;
         return (numTseitin != 0);
    //     tseitinClauses.clear
   } 
@@ -1047,17 +1053,17 @@ void reduceDependencySizes() {
     
     int end = MAX_DEP_SIZE;
 	for(auto&it: depAND) {
-        if (it.second.size() > MAX_DEP_SIZE ) //Added by Shetal to remove additional variables being generated
-            end = it.second.size(); 
-		while(end > MAX_DEP_SIZE) {
+      //  if (it.second.size() > MAX_DEP_SIZE ) //Added by Shetal to remove additional variables being generated
+       //     end = it.second.size(); 
+		while(it.second.size() > MAX_DEP_SIZE) {
 			int start = 0;
 			int end = MAX_DEP_SIZE;
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
-                origNumVars++;
+                //origNumVars++;
 				varsY.push_back(numVars);
-				assert(depFound.size() == numVars);
+		//		assert(depFound.size() == numVars);
 				depFound.push_back(true);
 
 				depAND[numVars] = vector<int>(it.second.begin()+start,it.second.begin()+end);
@@ -1076,9 +1082,9 @@ void reduceDependencySizes() {
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
-                origNumVars++;
+                //origNumVars++;
 				varsY.push_back(numVars);
-				assert(depFound.size() == numVars);
+				//assert(depFound.size() == numVars);
 				depFound.push_back(true);
 
 				depOR[numVars] = vector<int>(it.second.begin()+start,it.second.begin()+end);
@@ -1097,9 +1103,9 @@ void reduceDependencySizes() {
 			vector<int> newV;
 			while(start<it.second.size()) {
 				numVars++;
-                origNumVars++;
+                //origNumVars++;
 				varsY.push_back(numVars);
-				assert(depFound.size() == numVars);
+			//	assert(depFound.size() == numVars);
 				depFound.push_back(true);
 
 				depXOR[numVars] = vector<int>(it.second.begin()+start,it.second.begin()+end);
