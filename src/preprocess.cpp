@@ -114,159 +114,163 @@ int main(int argc, char * argv[]) {
     numOrigInputs = 0;
     numX = 0;
     numY = 0;
-
+//Read the Qdimacs file
     readQdimacsFile(qdFileName); 
+
     set<int> unateVarNums;
-
-    preprocess (unateVarNums); //Do unate check even if no tseitin's found
-    writeOutput (qdFileName); //Do not write the preprocessed qdimacs file.
-    
-    bool moreUnates = true;
-
-	vector<string> varOrder;
-    Abc_Ntk_t* FNtk;
-    Aig_Man_t* FAig = NULL;
-    while (moreUnates)
+    bool with_preprocess = true;
+    if (with_preprocess)
     {
-      //  cout << " varsX " << endl;
-       // print (varsX);
-        //cout << " varsY " << endl;
-       // print (origVarsY);
 
-        FNtk = getNtk(aigFileName);
+        preprocess (unateVarNums); //Do unate check even if no tseitin's found
+        writeOutput (qdFileName); //Do not write the preprocessed qdimacs file.
+        
+        bool moreUnates = true;
 
-        if (FNtk == NULL)
-            cout << " Aig File " << aigFileName << " not read " << endl;
-
-//Abc retains the names of the ci's and co's but changes the names of the internal nodes.
-        if (FAig != NULL)
+        vector<string> varOrder;
+        Abc_Ntk_t* FNtk;
+        Aig_Man_t* FAig = NULL;
+        while (moreUnates)
         {
-            Aig_ManStop (FAig);
+          //  cout << " varsX " << endl;
+           // print (varsX);
+            //cout << " varsY " << endl;
+           // print (origVarsY);
+
+            FNtk = getNtk(aigFileName);
+
+            if (FNtk == NULL)
+                cout << " Aig File " << aigFileName << " not read " << endl;
+
+    //Abc retains the names of the ci's and co's but changes the names of the internal nodes.
+            if (FAig != NULL)
+            {
+                Aig_ManStop (FAig);
+            }
+            FAig = Abc_NtkToDar(FNtk, 0, 0);
+            assert (FAig != NULL);
+
+            Aig_ManCleanup(FAig);
+
+
+            if (FAig == NULL)
+                cout << " In while loop : Manager NULL " << endl;
+
+            varsXF.clear();
+            varsYF.clear();
+            name2IdF.clear();
+            id2NameF.clear();
+            varOrder.clear();
+
+
+            cout << "populateVars" << endl;
+            populateVars(FNtk, varFileName, varOrder, varsXF, varsYF, name2IdF, id2NameF);
+
+            numX = varsXF.size();
+            numY = varsYF.size();
+
+            cout<<"numX: " << numX << " numY: " << numY << endl;
+
+            unate.resize(numY, -1); //Check if unates need to be resized each time or once is enough
+
+            getUnates(unate, FAig);
+
+            unateVarNums.clear();
+
+            for(int index=0; index < numY; index++) {
+            
+                string varName = id2NameF[varsYF[index]];
+                int varNum =  stoi(varName.substr(2));
+
+                if(unate[index]==1) { 
+                    unateVarNums.insert(varNum);
+                //	cout<<"unate: "<<varNum  << " varName: " << varName <<endl;
+                    
+                 //   ofs << varNum << " 0 " << endl;
+                }
+
+                else if(unate[index]==0){		
+                    unateVarNums.insert(-varNum);
+                //ofs << -varNum << " 0 " << endl;
+                 //   cout<<"unate: "<<(-varNum)<<endl;
+                }
+            }
+
+            if (unateVarNums.size() == 0 )
+            {
+                moreUnates = false;
+                writeOutput (qdFileName); //THe unates are not reflected in the verilog file until they are preprocessed.
+                cout << "End of preprocessing. ";
+                break; 
+            }
+            else if( unateVarNums.size() == numY)
+            {
+                    cout << "End of preprocessing. ALL variables UNATE!" << endl;
+                    cout << endl;
+                    preprocess (unateVarNums);
+                    writeOutput (qdFileName); //process the unates and simplify the qdimacs file.
+                    //s.printSynNNFAllTseitinsAndUnates();
+                    //cout << "depCONSt : "  ;
+                    //for (auto &it : depCONST)
+                     //   cout << it << " " ;
+                    //cout << endl;
+                  //  Abc_NtkStop (FNtk);
+                    //Aig_ManStop (FAig);
+
+
+                    assert (allClauses.size() <= numClauses);
+                    //varsXF.clear();
+                    //varsYF.clear();
+                    //name2IdF.clear();
+                    //id2NameF.clear();
+                    //bfssPhaseOne (FNtk, FAig, unate, unateVarNums.size(), false, varFileName, baseFileName);
+                    Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
+                    Abc_Stop();
+                    if (dumpResult)
+                        s.CreateSynNNF(allClauses, tseitinClauses, varsX, origVarsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, true);
+                    return 0;
+            }
+            else
+            {
+                //Abc_NtkStop (FNtk);
+                //Aig_ManStop (FAig);
+                bool cont = preprocess (unateVarNums); //Unates discovered - 
+                writeOutput (qdFileName); 
+                if (! cont) //No more tseitins discovered; 
+                 break;
+            }
         }
-        FAig = Abc_NtkToDar(FNtk, 0, 0);
-        assert (FAig != NULL);
 
-	    Aig_ManCleanup(FAig);
-
+        cout << "In Preprocess.cpp : NumX = " << varsX.size() << " numY = " << varsY.size() << endl;
+        assert (FAig != NULL); 
+     
+        //printAig (FAig);
+        vector<int> indX(numX);
+        vector<int> indY(numY);
+        //Collect leaves in the suport)
+        int status;
 
         if (FAig == NULL)
-            cout << " In while loop : Manager NULL " << endl;
+            cout << "Aig Manager NULL. Check " << endl;
 
-        varsXF.clear();
-        varsYF.clear();
-        name2IdF.clear();
-        id2NameF.clear();
-        varOrder.clear();
+        cout << " Checking for Syntatic Independence " << endl;
+        status = checkSynInd(FAig, indX, indY); //
+        if (status == -1)
+            status = checkSemInd (FAig, indX, indY);
 
-
-	    cout << "populateVars" << endl;
-	    populateVars(FNtk, varFileName, varOrder, varsXF, varsYF, name2IdF, id2NameF);
-
-        numX = varsXF.size();
-        numY = varsYF.size();
-
-	    cout<<"numX: " << numX << " numY: " << numY << endl;
-
-        unate.resize(numY, -1); //Check if unates need to be resized each time or once is enough
-
-	    getUnates(unate, FAig);
-
-        unateVarNums.clear();
-
-	    for(int index=0; index < numY; index++) {
-		
-            string varName = id2NameF[varsYF[index]];
-            int varNum =  stoi(varName.substr(2));
-
-            if(unate[index]==1) { 
-                unateVarNums.insert(varNum);
-			//	cout<<"unate: "<<varNum  << " varName: " << varName <<endl;
-                
-             //   ofs << varNum << " 0 " << endl;
-	        }
-
-		    else if(unate[index]==0){		
-		    	unateVarNums.insert(-varNum);
-            //ofs << -varNum << " 0 " << endl;
-			 //   cout<<"unate: "<<(-varNum)<<endl;
-	    	}
-	    }
-
-        if (unateVarNums.size() == 0 )
+        if (status == 0)
         {
-            moreUnates = false;
-            writeOutput (qdFileName); //THe unates are not reflected in the verilog file until they are preprocessed.
-            cout << "End of preprocessing. ";
-            break; 
+            cout << " F syntactically/semantically independent of X " << endl;
+            //check the algorithm what to return. 
+            return 0;
         }
-        else if( unateVarNums.size() == numY)
+        else if (status == 1)
         {
-                cout << "End of preprocessing. ALL variables UNATE!" << endl;
-                cout << endl;
-                preprocess (unateVarNums);
-                writeOutput (qdFileName); //process the unates and simplify the qdimacs file.
-                //s.printSynNNFAllTseitinsAndUnates();
-                //cout << "depCONSt : "  ;
-                //for (auto &it : depCONST)
-                 //   cout << it << " " ;
-                //cout << endl;
-              //  Abc_NtkStop (FNtk);
-                //Aig_ManStop (FAig);
-
-
-                assert (allClauses.size() <= numClauses);
-                //varsXF.clear();
-                //varsYF.clear();
-                //name2IdF.clear();
-                //id2NameF.clear();
-                //bfssPhaseOne (FNtk, FAig, unate, unateVarNums.size(), false, varFileName, baseFileName);
-                Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
-                Abc_Stop();
-                if (dumpResult)
-                    s.CreateSynNNF(allClauses, tseitinClauses, varsX, origVarsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, true);
-                return 0;
+            cout << " F syntactically/semantically independent of Y " << endl;
+            //check the algorithm what to return 
+            return 0;
         }
-        else
-        {
-            //Abc_NtkStop (FNtk);
-            //Aig_ManStop (FAig);
-            bool cont = preprocess (unateVarNums); //Unates discovered - 
-            writeOutput (qdFileName); 
-            if (! cont) //No more tseitins discovered; 
-             break;
-        }
-    }
-
-    cout << "In Preprocess.cpp : NumX = " << varsX.size() << " numY = " << varsY.size() << endl;
-    assert (FAig != NULL); 
- 
-    //printAig (FAig);
-    vector<int> indX(numX);
-    vector<int> indY(numY);
-    //Collect leaves in the suport)
-    int status;
-
-    if (FAig == NULL)
-        cout << "Aig Manager NULL. Check " << endl;
-
-    cout << " Checking for Syntatic Independence " << endl;
-    status = checkSynInd(FAig, indX, indY); //
-    if (status == -1)
-        status = checkSemInd (FAig, indX, indY);
-
-    if (status == 0)
-    {
-        cout << " F syntactically/semantically independent of X " << endl;
-        //check the algorithm what to return. 
-        return 0;
-    }
-    else if (status == 1)
-    {
-        cout << " F syntactically/semantically independent of Y " << endl;
-        //check the algorithm what to return 
-        return 0;
-    }
-
+/*  --Commenting out sematic independence checks and substitution
     //Subsititute Semantic Independence
 	vector<int> varIdVec;
 	vector<Aig_Obj_t*> funcVec;
@@ -303,30 +307,33 @@ int main(int argc, char * argv[]) {
     //printAig (pMan);
 	Aig_ManStop(tempAig);
     //printAig (FAig);
-
-    varsXF.clear();
-    varsYF.clear();
-    name2IdF.clear();
-    id2NameF.clear();
-    //Check for error formula
-    bool useBDD = false;
-    if  (!bfssPhaseOne (FNtk, FAig, unate, unateVarNums.size(), useBDD, varFileName, baseFileName))
-    { 
-        Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
-        cout << " Calling the synNNF Solver " << endl;
-        //cout << " varsX " << endl;
-        //print (varsX);
-        cout << " varsY " << endl;
-        print (varsY);
-    //Add Unates/Unit Clauses; May lead to some duplication.
-        assert (allClauses.size() <= numClauses);
-        s.CreateSynNNF(allClauses, tseitinClauses, varsX, varsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, false);
+*/
+        varsXF.clear();
+        varsYF.clear();
+        name2IdF.clear();
+        id2NameF.clear();
+        //Check for error formula
+        bool useBDD = false;
+        if  (!bfssPhaseOne (FNtk, FAig, unate, unateVarNums.size(), useBDD, varFileName, baseFileName))
+        { 
+            Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
+            cout << " Calling the synNNF Solver " << endl;
+            //cout << " varsX " << endl;
+            //print (varsX);
+            cout << " varsY " << endl;
+            print (varsY);
+        //Add Unates/Unit Clauses; May lead to some duplication.
+            assert (allClauses.size() <= numClauses);
+            s.CreateSynNNF(allClauses, tseitinClauses, varsX, varsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, false);
+        }
+        else
+        {
+            //printSkolemFunctions(FAig);
+            Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
+        }
     }
     else
-    {
-        //printSkolemFunctions(FAig);
-        Aig_ManStop (FAig); //Need to return the SynNNF form here - TODO
-    }
+          s.CreateSynNNF(allClauses, tseitinClauses, varsX, varsY, origNumVars, tseitinVars, baseFileName, depCONST, depAND, depOR, depXOR, false);
 
     //Abc_NtkStop (FNtk);
 	Abc_Stop();

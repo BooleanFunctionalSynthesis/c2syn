@@ -324,7 +324,7 @@ Aig_Man_t* QdimacsToAig(const char * qdFileName, vector<Aig_Obj_t*>& varsXAig, v
 		strcpy(filename, checkA_filename.c_str());
 		Cnf_DataWriteIntoFile( FCnf, filename, 1, vForAlls, vExists); // check fReadable arg
 		string assert_true = to_string(cond_var) + " 0\n";
-		cout<<"assert final CNF is true: "<<assert_true<<endl;
+		//cout<<"assert final CNF is true: "<<assert_true<<endl;
 		ofstream ofs(filename, ios_base::app);
 		ofs<<assert_true;
 		cout<<"Written check (a) into file "<<checkA_filename<<endl;
@@ -334,11 +334,11 @@ Aig_Man_t* QdimacsToAig(const char * qdFileName, vector<Aig_Obj_t*>& varsXAig, v
 //This is one direction of check (b) Def 4 Section iV of the paper
 bool verifyConversion(Aig_Man_t* F_d_man, Aig_Man_t* F_man, vector<Aig_Obj_t*> varsXAig, vector<Aig_Obj_t *> varsYAig, string baseFileName) {
 
-		cout<<"num cis in Fd_man "<<Aig_ManCiNum(F_d_man)<<endl;
+//		cout<<"num cis in Fd_man "<<Aig_ManCiNum(F_d_man)<<endl;
 		assert(Aig_ManCiNum(F_man) == Aig_ManCiNum(F_d_man));
 
-		if (Aig_ObjIsConst1(Aig_Regular(Aig_ObjChild0(Aig_ManCo(F_d_man,0)))))
-			cout << " F_d_man points to const0/1 " << endl;
+//		if (Aig_ObjIsConst1(Aig_Regular(Aig_ObjChild0(Aig_ManCo(F_d_man,0)))))
+//			cout << " F_d_man points to const0/1 " << endl;
 /**Transfer will transfer F_d_man to F_man  */
 
 		Aig_Obj_t * Fd_node = Aig_Transfer(F_d_man, F_man, Aig_ObjChild0(Aig_ManCo(F_d_man,0)), Aig_ManCiNum(F_man));
