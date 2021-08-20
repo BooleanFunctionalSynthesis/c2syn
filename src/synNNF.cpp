@@ -1680,7 +1680,7 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                              constr_name  += "_off";
                                          else
                                          {
-                                            cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
+                                            //cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
                                             constr_name +="_on";
                                             //assert (false);
                                          }
@@ -1706,11 +1706,11 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                     {
                                         ofs << " " << tname << "_INP_" << lit << "="  ;
                                         if (depCONST.find(lit) != depCONST.end())   //Tseitin Constant?
-                                                 ofs << "on";
+                                                 ofs << "on ";
                                         else
                                         {
                                             if (depCONST.find(-lit) != depCONST.end())
-                                                    ofs <<  "off";
+                                                    ofs <<  "off ";
                                             else
                                             {
                                                 if (activeY[lit])
@@ -1722,8 +1722,8 @@ void synSolver::writeDSharp_rec(DTNode* node, ofstream& ofs, map<int, string> & 
                                                         ofs << "off " ;
                                                     else
                                                     {
-                                                            cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
-                                                            ofs << "on";
+                                                 //           cout << "Lit " << lit << " HAS NO ASSIGNMENT: ERROR. Var under consideration is " << tname << endl;
+                                                            ofs << "on ";
                                                         //assert (false);
                                                     }
                                                 }
