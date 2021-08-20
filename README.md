@@ -16,4 +16,12 @@ To make:
 
 To run:
 
-To run c2syn use the following command ${PATH-TO-c2syn}/c2syn benchmark.qdimacs
+To run c2syn use the following command ${PATH-TO-c2syn}/c2syn {benchmark-name}.qdimacs
+To verify the {benchmark-name}.syn.blif file use:
+    ${PATH-TO-c2syn}/verify {benchmark-name}.qdimacs {benchmark-name}.syn.blif {benchmark-name}_varstoelim.txt
+
+Please see the script test/runc2syn for more details.
+
+Known issues:
+
+1. The generated synNNF file ({benchmark-name}.syn.blif) can be quite large. In this case, we are currently unable to verify these files as they are too big for ABC to read them.

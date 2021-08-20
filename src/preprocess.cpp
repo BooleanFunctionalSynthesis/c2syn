@@ -236,6 +236,37 @@ int main(int argc, char * argv[]) {
                 //Aig_ManStop (FAig);
                 bool cont = preprocess (unateVarNums); //Unates discovered - 
                 writeOutput (qdFileName); 
+                //Read the ntk once again to take care of unates passed to readCnf.
+                
+                FNtk = getNtk(aigFileName);
+
+                if (FNtk == NULL)
+                    cout << " Aig File " << aigFileName << " not read " << endl;
+
+        //Abc retains the names of the ci's and co's but changes the names of the internal nodes.
+                if (FAig != NULL)
+                {
+                    Aig_ManStop (FAig);
+                }
+                FAig = Abc_NtkToDar(FNtk, 0, 0);
+                assert (FAig != NULL);
+
+                Aig_ManCleanup(FAig);
+
+
+                if (FAig == NULL)
+                    cout << " In while loop : Manager NULL " << endl;
+
+                varsXF.clear();
+                varsYF.clear();
+                name2IdF.clear();
+                id2NameF.clear();
+                varOrder.clear();
+
+
+                cout << "populateVars" << endl;
+                populateVars(FNtk, varFileName, varOrder, varsXF, varsYF, name2IdF, id2NameF);
+
                 if (! cont) //No more tseitins discovered; 
                  break;
             }
@@ -255,8 +286,8 @@ int main(int argc, char * argv[]) {
 
         cout << " Checking for Syntatic Independence " << endl;
         status = checkSynInd(FAig, indX, indY); //
-        if (status == -1)
-            status = checkSemInd (FAig, indX, indY);
+       // if (status == -1)
+        //    status = checkSemInd (FAig, indX, indY);
 
         if (status == 0)
         {
@@ -689,6 +720,7 @@ bool bfssPhaseOne(Abc_Ntk_t* FNtk, Aig_Man_t* FAig, vector<int>& unate, int numT
 	//map<string, int> name2IdF;
 	//map<int, string> id2NameF;
 
+	Aig_ManPrintStats( FAig );
 	Nnf_Man nnfNew;
 	if(useBDD)
     {
@@ -976,7 +1008,7 @@ bool bfssPhaseOne(Abc_Ntk_t* FNtk, Aig_Man_t* FAig, vector<int>& unate, int numT
 		if(useR1AsSkolem[i])
         {
 			pAigObj	= Aig_Not(newOR(SAig, r1[i]));
-            if (!solved)
+       /*     if (!solved)
             {
                 string varName = id2NameF[varsYS[i]];
                 int varNum =  stoi(varName.substr(2));
@@ -985,12 +1017,13 @@ bool bfssPhaseOne(Abc_Ntk_t* FNtk, Aig_Man_t* FAig, vector<int>& unate, int numT
                         depCONST.insert(-varNum);
                 }    
             }
+            */
 
         }
 		else
         {
 			pAigObj	= newOR(SAig, r0[i]);
-            if (!solved)
+            /*if (!solved)
             {
                 string varName = id2NameF[varsYS[i]];
                 int varNum =  stoi(varName.substr(2));
@@ -999,6 +1032,7 @@ bool bfssPhaseOne(Abc_Ntk_t* FNtk, Aig_Man_t* FAig, vector<int>& unate, int numT
                         depCONST.insert(varNum);
                 }    
             }
+            */
         }
         if (solved)
         {
