@@ -2,7 +2,7 @@ This is an alternate implementation of the c2syn paper:
 
 Knowledge Compilation for Boolean Functional Synthesis
 S. Akshay, Jatin Arora, Supratik Chakraborty, S. Krishna, Divya Raghunathan and Shetal Shah
-In Formal Methods in Computer-Aided Design (FMCAD), Oct. 2019 
+In Formal Methods in Computer-Aided Design (FMCAD), Oct. 2019 [http://theory.stanford.edu/~barrett/fmcad/papers/FMCAD2019_paper_84.pdf]
 
 -----
 Download the code using git clone 
