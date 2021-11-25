@@ -9,6 +9,8 @@ Download the code using git clone
 
 To make:
 
+To make c2syn, we first need to make the libraries it is dependent on. This can be done by running the install.sh script or
+alternatively using the following commands:
 1. cd dependencies/abc; make; make libabc.a; cd ../../
 2. cd dependencies/dsharp; make; make libdsharp.a; cd ../../
 3. cd dependencies/bfss; make; make libcombfss.a; cd ../../
