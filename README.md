@@ -7,6 +7,9 @@ In Formal Methods in Computer-Aided Design (FMCAD), Oct. 2019
 -----
 Download the code using git clone 
 
+The code uses ABC [https://github.com/berkeley-abc/abc], Dsharp [https://github.com/QuMuLab/dsharp] and BFSS [https://github.com/BooleanFunctionalSynthesis/bfss] as libraries and the downloaded code contains the source code for these libraries.
+
+
 To make:
 
 To make c2syn, we first need to make the libraries it is dependent on. This can be done by running the install.sh script or
@@ -15,6 +18,7 @@ alternatively using the following commands:
 2. cd dependencies/dsharp; make; make libdsharp.a; cd ../../
 3. cd dependencies/bfss; make; make libcombfss.a; cd ../../
 4. Finally do a make in the base directory. This will generate the binary c2syn in the bin directory
+
 
 To run:
 
